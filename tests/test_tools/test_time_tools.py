@@ -1,7 +1,5 @@
 """Tests for time tools."""
 
-from __future__ import annotations
-
 from mcp_server.tools.time_tools import convert_timezone, to_unix_time
 from mcp_server.utils import parse_datetime
 

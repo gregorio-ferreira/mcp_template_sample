@@ -1,6 +1,4 @@
-"""File manipulation tools (template)."""
-
-from __future__ import annotations
+"""File operation tools for the MCP server."""
 
 from pathlib import Path
 from typing import Annotated

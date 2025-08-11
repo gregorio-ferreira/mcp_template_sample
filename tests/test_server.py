@@ -1,7 +1,5 @@
 """Server structure tests using singleton registration pattern."""
 
-from __future__ import annotations
-
 from mcp_server.server import mcp, register_tools
 
 

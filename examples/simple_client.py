@@ -1,11 +1,9 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run python
 """Simple MCP Client Example.
 
 This example demonstrates how to connect to an MCP server and use its tools.
 It uses the FastMCP Python client to interact with the server.
 """
-
-from __future__ import annotations
 
 import asyncio
 

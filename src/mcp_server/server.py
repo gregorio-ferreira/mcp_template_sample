@@ -1,6 +1,4 @@
-"""Main MCP server implementation using FastMCP."""
-
-from __future__ import annotations
+"""MCP Server implementation using FastMCP."""
 
 import logging
 

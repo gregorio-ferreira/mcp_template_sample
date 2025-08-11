@@ -1,6 +1,8 @@
-"""MCP Server Template Package."""
+"""MCP Server Package.
 
-from __future__ import annotations
+This package provides an MCP (Model Context Protocol) server implementation
+using the FastMCP framework.
+"""
 
 from .models import TimezoneConvertInput, UnixTimeInput, ToolResult
 

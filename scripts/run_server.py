@@ -1,5 +1,4 @@
 """Run the MCP server."""
-from __future__ import annotations
 
 from mcp_server.server import main
 

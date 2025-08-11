@@ -1,11 +1,9 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run python
 """MCP Client Test Script using FastMCP Client.
 
 This script tests the MCP server functionality using the FastMCP Python client.
 It can be run standalone or imported for use in other testing scenarios.
 """
-
-from __future__ import annotations
 
 import asyncio
 import sys

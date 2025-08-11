@@ -1,7 +1,6 @@
-"""Validation script for server tools and configuration."""
-from __future__ import annotations
+"""Validate MCP server functionality."""
 
-import json
+import asyncio
 
 from mcp_server.server import create_server
 
