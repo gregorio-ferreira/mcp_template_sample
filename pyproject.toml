@@ -27,6 +27,8 @@ dependencies = [
     "python-dotenv>=1.0",
     "httpx>=0.27",
     "typing-extensions>=4.9",
+    "starlette>=0.36",
+    "uvicorn>=0.29",
 ]
 
 [project.optional-dependencies]
