@@ -1,0 +1,213 @@
+# text-insight-rag-agent — Makefile
+# Lightweight developer workflow for the Python backend and local infra
+
+# Colors
+GREEN  := $(shell tput -Txterm setaf 2)
+YELLOW := $(shell tput -Txterm setaf 3)
+BLUE   := $(shell tput -Txterm setaf 4)
+CYAN   := $(shell tput -Txterm setaf 6)
+RED    := $(shell tput -Txterm setaf 1)
+RESET  := $(shell tput -Txterm sgr0)
+
+TARGET_MAX_CHAR_NUM=26
+
+# Paths and config
+COMPOSE_FILE ?= docker/docker-compose.yaml
+PROFILE      ?= stack
+ENV_FILE     ?= .env
+
+# Python tooling
+UV    ?= uv
+RUN   ?= $(UV) run
+
+# FastAPI app
+APP_MODULE ?= src.app.main:app
+HOST       ?= 0.0.0.0
+PORT       ?= 8000
+
+.DEFAULT_GOAL := help
+
+## Show help
+help:
+	@echo ''
+	@echo '$(CYAN)text-insight-rag-agent — Developer Commands$(RESET)'
+	@echo ''
+	@echo 'Usage:'
+	@echo '  $(YELLOW)make$(RESET) $(GREEN)<target>$(RESET)'
+	@echo ''
+	@echo 'Targets:'
+	@awk '/^[a-zA-Z\-\_0-9]+:/ { \
+		helpMessage = match(lastLine, /^## (.*)/); \
+		if (helpMessage) { \
+			helpCommand = substr($$1, 0, index($$1, ":")-1); \
+			helpMessage = substr(lastLine, RSTART + 3, RLENGTH); \
+			printf "\033[36m%-$(TARGET_MAX_CHAR_NUM)s\033[0m %s\n", helpCommand, helpMessage; \
+		} \
+	} \
+	{ lastLine = $$0 }' $(MAKEFILE_LIST)
+
+# =============================================================================
+# SETUP AND QUALITY
+# =============================================================================
+
+## Install project dependencies with uv
+install:
+	@echo "$(BLUE)Installing dependencies (uv sync)...$(RESET)"
+	$(UV) sync
+	@echo "$(GREEN)Dependencies installed.$(RESET)"
+
+## Setup dev env: install deps, install pre-commit, ensure .env exists
+setup: install hooks-install ensure-env
+	@echo "$(GREEN)Development environment ready.$(RESET)"
+
+## Install pre-commit hooks
+hooks-install:
+	@echo "$(BLUE)Installing pre-commit hooks...$(RESET)"
+	$(RUN) pre-commit install || true
+	@echo "$(GREEN)Pre-commit installed (if available).$(RESET)"
+
+## Ensure .env exists (copies from .env.example if present)
+ensure-env:
+	@if [ ! -f $(ENV_FILE) ] && [ -f .env.example ]; then \
+		echo "$(YELLOW)$(ENV_FILE) not found. Creating from .env.example$(RESET)"; \
+		cp .env.example $(ENV_FILE); \
+	else \
+		echo "$(GREEN)$(ENV_FILE) present.$(RESET)"; \
+	fi
+
+## Lint with Ruff
+lint:
+	@echo "$(BLUE)Ruff lint...$(RESET)"
+	$(RUN) ruff check .
+
+## Format with Ruff
+format:
+	@echo "$(BLUE)Ruff format...$(RESET)"
+	$(RUN) ruff format .
+
+## Type-check with MyPy
+typecheck:
+	@echo "$(BLUE)MyPy type-check...$(RESET)"
+	$(RUN) mypy src
+
+## Run tests (pytest)
+test:
+	@echo "$(BLUE)Running tests...$(RESET)"
+	$(RUN) pytest -q
+
+## Run pre-commit on all files
+pre-commit:
+	@echo "$(BLUE)Running pre-commit on all files...$(RESET)"
+	$(RUN) pre-commit run --all-files || true
+
+## Update pre-commit hooks
+pre-commit-update:
+	@echo "$(BLUE)Updating pre-commit hooks...$(RESET)"
+	$(RUN) pre-commit autoupdate
+
+# =============================================================================
+# LOCAL INFRA (Docker Compose)
+# =============================================================================
+
+DC := docker compose -f $(COMPOSE_FILE) --profile $(PROFILE)
+
+## Start full stack (db + minio + neo4j)
+stack-up:
+	@echo "$(BLUE)Starting local stack [profile=$(PROFILE)]...$(RESET)"
+	$(DC) up -d
+	@echo "$(GREEN)Stack started.$(RESET)"
+
+## Stop and remove stack containers
+stack-down:
+	@echo "$(YELLOW)Stopping local stack [profile=$(PROFILE)]...$(RESET)"
+	$(DC) down
+	@echo "$(GREEN)Stack stopped.$(RESET)"
+
+## Show compose status
+stack-status:
+	$(DC) ps
+
+## Tail compose logs
+stack-logs:
+	$(DC) logs -f
+
+## Start only Postgres
+db-up:
+	$(DC) up -d db
+
+## Stop Postgres
+db-down:
+	$(DC) stop db
+
+## Start only MinIO
+minio-up:
+	$(DC) up -d minio
+
+## Stop MinIO
+minio-down:
+	$(DC) stop minio
+
+## Start only Neo4j
+neo4j-up:
+	$(DC) up -d neo4j
+
+## Stop Neo4j
+neo4j-down:
+	$(DC) stop neo4j
+
+## Reset Postgres (data loss!) and re-apply migrations
+db-reset:
+	@echo "$(RED)Resetting Postgres data (volumes) and re-applying migrations...$(RESET)"
+	$(DC) down -v || true
+	$(DC) up -d db
+	@echo "$(YELLOW)Waiting for DB to initialize...$(RESET)" && sleep 5
+	$(MAKE) migrate
+
+# =============================================================================
+# DATABASE MIGRATIONS (Alembic)
+# =============================================================================
+
+## Create new Alembic revision (usage: make revision MESSAGE="add foo")
+revision:
+	@if [ -z "$(MESSAGE)" ]; then \
+		echo "$(RED)Please provide MESSAGE=\"your message\"$(RESET)"; exit 2; \
+	fi
+	@echo "$(BLUE)Creating revision: $(MESSAGE)...$(RESET)"
+	$(RUN) alembic revision --autogenerate -m "$(MESSAGE)"
+
+## Apply migrations to head
+migrate:
+	@echo "$(BLUE)Applying migrations...$(RESET)"
+	$(RUN) alembic upgrade head
+
+## Downgrade one step (usage: make downgrade STEP=1)
+downgrade:
+	@if [ -z "$(STEP)" ]; then STEP=1; fi; \
+	echo "$(YELLOW)Downgrading by $$STEP step(s)...$(RESET)"; \
+	$(RUN) alembic downgrade -$${STEP}
+
+# =============================================================================
+# RUN APPLICATION
+# =============================================================================
+
+## Run FastAPI with auto-reload
+dev:
+	@echo "$(BLUE)Starting API server at http://$(HOST):$(PORT) ...$(RESET)"
+	$(RUN) uvicorn $(APP_MODULE) --host $(HOST) --port $(PORT) --reload
+
+# =============================================================================
+# UTILITIES
+# =============================================================================
+
+## Check local toolchain
+check-deps:
+	@echo "$(CYAN)Checking dependencies...$(RESET)"
+	@command -v $(UV) >/dev/null 2>&1 && echo "$(GREEN)✓ uv$(RESET)" || echo "$(RED)✗ uv$(RESET)"
+	@command -v docker >/dev/null 2>&1 && echo "$(GREEN)✓ docker$(RESET)" || echo "$(RED)✗ docker$(RESET)"
+	@docker compose version >/dev/null 2>&1 && echo "$(GREEN)✓ docker compose$(RESET)" || echo "$(RED)✗ docker compose$(RESET)"
+	@echo "$(CYAN)Done.$(RESET)"
+
+.PHONY: help install setup hooks-install ensure-env lint format typecheck test \
+	stack-up stack-down stack-status stack-logs db-up db-down minio-up minio-down neo4j-up neo4j-down db-reset \
+	revision migrate downgrade dev check-deps
+
