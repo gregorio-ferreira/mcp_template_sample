@@ -1,87 +1,94 @@
-"""Example LangGraph agent client using MultiServerMCPClient.
+#!/usr/bin/env python3
+"""Agent Client Example.
 
-Provides an offline fallback when OPENAI_API_KEY is not set: it will list the
-discovered tools and invoke them directly without an LLM.
+This example demonstrates creating an AI-powered conversational agent
+that can use MCP tools through LangChain and LangGraph.
 """
+
 from __future__ import annotations
 
 import asyncio
 import os
 
-from langchain_mcp_adapters.client import MultiServerMCPClient
+from dotenv import load_dotenv
 
+# Load environment variables
+load_dotenv()
 
-async def _offline_demo(client: MultiServerMCPClient) -> None:
-    """List tools and call them directly without an LLM (offline mode)."""
-    tools = await client.get_tools()
-    print("Offline mode: listing discovered tools:")
-    for t in tools:
-        print(f"- {t.name}: {t.description}")
-
-    # Direct MCP tool invocation via client (bypasses agent / LLM)
-    print("\nCalling convert_timezone tool directly (offline):")
-    async with client as c:
-        res = await c.call_tool(
-            "convert_timezone",
-            {
-                "dt": "2025-08-10 09:30",
-                "from_tz": "Europe/Madrid",
-                "to_tz": "America/New_York",
-            },
-        )
-        print(res)
-
-        print("\nCalling to_unix_time tool directly (offline):")
-        res2 = await c.call_tool(
-            "to_unix_time",
-            {"dt": "2025-08-10T09:30:00+02:00", "unit": "milliseconds"},
-        )
-        print(res2)
-
-
-async def _agent_demo(client: MultiServerMCPClient) -> None:
-    """Full agent demo using an OpenAI model (requires OPENAI_API_KEY)."""
-    from langgraph.prebuilt import create_react_agent  # local import to avoid unused when offline
-    from langchain.chat_models import init_chat_model
-
-    tools = await client.get_tools()
-    model = init_chat_model("openai:gpt-4o-mini")
-    agent = create_react_agent(model, tools)
-
-    print("Timezone conversion example:")
-    res1 = await agent.ainvoke(
-        {
-            "messages": (
-                "Convert '2025-08-10 09:30' from Europe/Madrid to America/New_York in ISO format."
-            )
-        }
-    )
-    print(res1["messages"][-1].content)
-
-    print("Unix time example:")
-    res2 = await agent.ainvoke(
-        {"messages": "Convert '2025-08-10T09:30:00+02:00' to Unix time in milliseconds."}
-    )
-    print(res2["messages"][-1].content)
+# Server configuration
+SERVER_URL = "http://127.0.0.1:8000/mcp/"
 
 
 async def main() -> None:
-    client = MultiServerMCPClient(
-        {
-            "time_tools": {
-                "transport": "streamable_http",
-                "url": "http://127.0.0.1:8000/mcp/",
-            }
-        }
-    )
+    """Example of creating an AI agent with MCP tools."""
+    print("🤖 MCP Agent Example")
+    print("=" * 40)
+
+    # Check if OpenAI API key is available
     if not os.getenv("OPENAI_API_KEY"):
-        print("OPENAI_API_KEY not set -> running offline fallback demo.")
-        await _offline_demo(client)
-        await client.close()
+        print("❌ OPENAI_API_KEY not set")
+        print("💡 Set your OpenAI API key in the .env file to run this example")
+        print("💡 For a working example, use:")
+        print("   uv run python tests/test_examples/mcp_chat_agent.py")
         return
-    await _agent_demo(client)
-    await client.close()
+
+    try:
+        from langchain_mcp_adapters.client import MultiServerMCPClient
+        from langchain.chat_models import init_chat_model
+        from langgraph.prebuilt import create_react_agent
+    except ImportError:
+        print("❌ Agent dependencies not installed")
+        print("💡 Install with: uv pip install -e '.[agent]'")
+        return
+
+    print(f"📍 Server URL: {SERVER_URL}")
+
+    try:
+        # Initialize MCP client
+        client = MultiServerMCPClient(
+            {
+                "mcp_server": {
+                    "transport": "streamable_http",
+                    "url": SERVER_URL,
+                }
+            }
+        )
+
+        # Get available tools
+        tools = await client.get_tools()
+        print(f"✅ Connected to MCP server with {len(tools)} tools")
+
+        # Initialize AI model and agent
+        model = init_chat_model("openai:gpt-4o-mini")
+        agent = create_react_agent(model, tools)
+
+        # Example interactions
+        example_queries = [
+            "What time is it in Tokyo when it's 3 PM in London?",
+            "Convert midnight UTC on New Year's Day 2025 to Unix timestamp",
+        ]
+
+        print("\n🎬 Example Agent Interactions:")
+        print("=" * 50)
+
+        for query in example_queries:
+            print(f"\n👤 Human: {query}")
+            print("🤖 Agent: ", end="", flush=True)
+
+            result = await agent.ainvoke({"messages": [query]})
+            response = result["messages"][-1].content
+            print(response)
+
+        print("\n✨ For interactive chat, run:")
+        print("   uv run python tests/test_examples/mcp_chat_agent.py")
+
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        print("\n💡 Make sure:")
+        print("   1. MCP server is running: uv run python scripts/run_server.py")
+        print("   2. Agent dependencies installed: uv pip install -e '.[agent]'")
+        print("   3. OpenAI API key is set in .env file")
 
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":
     asyncio.run(main())

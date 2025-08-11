@@ -888,7 +888,9 @@ dependencies = [
     { name = "python-dateutil" },
     { name = "python-dotenv" },
     { name = "pytz" },
+    { name = "starlette" },
     { name = "typing-extensions" },
+    { name = "uvicorn" },
 ]
 
 [package.optional-dependencies]
@@ -936,7 +938,9 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "pytz", specifier = ">=2024.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.3" },
+    { name = "starlette", specifier = ">=0.36" },
     { name = "typing-extensions", specifier = ">=4.9" },
+    { name = "uvicorn", specifier = ">=0.29" },
 ]
 provides-extras = ["dev", "agent"]
 

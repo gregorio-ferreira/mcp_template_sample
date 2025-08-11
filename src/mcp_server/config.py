@@ -1,4 +1,5 @@
 """Configuration management for the MCP server."""
+
 from __future__ import annotations
 
 import os

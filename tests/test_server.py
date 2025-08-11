@@ -1,7 +1,6 @@
 """Server structure tests using singleton registration pattern."""
-from __future__ import annotations
 
-import pytest
+from __future__ import annotations
 
 from mcp_server.server import mcp, register_tools
 
@@ -13,10 +12,7 @@ class TestServerStructure:
         register_tools()
         assert mcp is not None
 
-    @pytest.mark.asyncio
-    async def test_tool_registration_count(self) -> None:
+    def test_tool_registration_count(self) -> None:
         register_tools()
-        # list_tools is async; ensure core tools present
-        tools = await mcp.list_tools()
-        names = {t.name for t in tools}
+        names = {t.name for t in getattr(mcp, "tools", [])}
         assert {"convert_timezone", "to_unix_time"}.issubset(names)

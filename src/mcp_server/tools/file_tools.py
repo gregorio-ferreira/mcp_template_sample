@@ -1,4 +1,5 @@
 """File manipulation tools (template)."""
+
 from __future__ import annotations
 
 from pathlib import Path

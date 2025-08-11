@@ -11,20 +11,26 @@ This repository is a Python template for building Model Context Protocol (MCP) s
   - models.py — Pydantic models for input/output validation
   - `config.py`, `utils.py` — Configuration and utility helpers
 - tests — Pytest suite, with per-tool test modules under `test_tools/`
-- examples — Example clients for using the server
+  - `test_examples/` — Integration test scripts (bash, Python client, AI agent)
+- examples — Example clients for using the server (simple client, AI agent)
 - scripts — Utility scripts (e.g. `run_server.py`)
 - pyproject.toml — Project metadata, dependencies, and tool configs
+- `.env` — Environment variables (copy from `.env.example`)
+- `Makefile` — Development workflow commands
 - `.github/copilot-instructions.md` — This file
 
 ## Build, Run, and Test
 
 - **Install dependencies:**  
   ```bash
-  uv pip install -e .
-  uv pip install -e ".[dev]"
+  uv sync
+  uv pip install -e ".[dev]"      # Development dependencies
+  uv pip install -e ".[agent]"    # AI agent dependencies (optional)
   ```
 - **Run the server:**  
   ```bash
+  make run
+  # or
   python scripts/run_server.py
   # or
   python -m mcp_server.server
@@ -33,14 +39,22 @@ This repository is a Python template for building Model Context Protocol (MCP) s
   ```
 - **Run tests:**  
   ```bash
-  pytest
-  pytest tests/test_tools/test_time_tools.py
+  make test              # Unit tests
+  make test-server       # Integration test with curl
+  make test-client       # Integration test with Python client
+  make check-server      # Check if server is running
+  ```
+- **Run examples:**
+  ```bash
+  make example           # Simple client example
+  make agent             # AI agent example (requires OpenAI API key)
+  make chat              # Interactive chat agent
   ```
 - **Lint & format:**  
   ```bash
-  black src/ tests/
-  ruff format src/ tests/
-  ruff check src/ tests/
+  make format            # Format code
+  make lint              # Lint code
+  make mypy              # Type checking
   ```
 
 ## Coding Standards

@@ -63,6 +63,14 @@ pytest --cov
 
 # Run specific test file (example)
 pytest tests/test_tools/test_time_tools.py
+
+# Test MCP server functionality
+make test-server          # Test with curl
+make test-client          # Test with Python client
+make check-server         # Check if server is running
+
+# Interactive testing
+make chat                 # Start chat agent (requires OpenAI API key)
 ```
 
 ### Using with LangChain/LangGraph
@@ -71,8 +79,14 @@ pytest tests/test_tools/test_time_tools.py
 # Install agent dependencies
 uv pip install -e ".[agent]"
 
+# Set up your OpenAI API key in .env file
+echo "OPENAI_API_KEY=your-key-here" >> .env
+
 # Run example agent
 python examples/agent_client.py
+
+# Run interactive chat agent
+python tests/test_examples/mcp_chat_agent.py
 ```
 
 ## Development
@@ -138,7 +152,13 @@ ruff check src/ tests/
 │   ├── config.py          # Configuration
 │   └── utils.py           # Utilities
 ├── tests/                 # Test suite (per-tool modules under test_tools/)
+│   └── test_examples/     # Integration test scripts
+│       ├── test_mcp_server.sh      # Bash/curl testing
+│       ├── test_mcp_client.py      # Python client testing
+│       └── mcp_chat_agent.py       # Interactive AI agent
 ├── examples/              # Usage examples
+│   ├── simple_client.py   # Basic client example
+│   └── agent_client.py    # AI agent example
 └── scripts/               # Utility scripts
 ```
 
@@ -151,6 +171,7 @@ Configure via environment variables or `.env` file:
 - `MCP_PATH`: MCP endpoint path (default: /mcp)
 - `MCP_DEBUG`: Enable debug mode (default: false)
 - `MCP_LOG_LEVEL`: Logging level (default: INFO)
+- `OPENAI_API_KEY`: OpenAI API key for agent examples (optional)
 
 ## License
 

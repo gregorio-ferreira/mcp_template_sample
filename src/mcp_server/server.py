@@ -1,5 +1,5 @@
-
 """Main MCP server implementation using FastMCP."""
+
 from __future__ import annotations
 
 import logging
@@ -37,9 +37,7 @@ def main() -> None:
     """Main entry point for the server."""
     config = get_config()
     setup_logging(config.log_level)
-    logger.info(
-        "Starting MCP server on %s:%s%s", config.host, config.port, config.path
-    )
+    logger.info("Starting MCP server on %s:%s%s", config.host, config.port, config.path)
     register_tools()
     # Serve HTTP on localhost:8000 at path /mcp (recommended for web deployments)
     # You can override host/port/path via CLI: fastmcp run src/mcp_server/server.py --transport http --port 9000
@@ -64,4 +62,5 @@ if __name__ == "__main__":  # pragma: no cover
         allow_credentials=True,
     )
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

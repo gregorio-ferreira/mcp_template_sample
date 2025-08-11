@@ -103,6 +103,35 @@ example:
 	@echo "$(BLUE)Running example client...$(RESET)"
 	$(RUN) python $(EXAMPLES_DIR)/simple_client.py
 
+## Run agent example (requires OpenAI API key)
+agent:
+	@echo "$(BLUE)Running agent example...$(RESET)"
+	$(RUN) python $(EXAMPLES_DIR)/agent_client.py
+
+## Run interactive chat agent
+chat:
+	@echo "$(BLUE)Starting interactive chat agent...$(RESET)"
+	$(RUN) python tests/test_examples/mcp_chat_agent.py
+
+# =============================================================================
+# TESTING & VALIDATION
+# =============================================================================
+
+## Test MCP server with curl (bash)
+test-server:
+	@echo "$(BLUE)Testing MCP server with curl...$(RESET)"
+	@./tests/test_examples/test_mcp_server.sh
+
+## Test MCP server with Python client
+test-client:
+	@echo "$(BLUE)Testing MCP server with Python client...$(RESET)"
+	$(RUN) python tests/test_examples/test_mcp_client.py --all
+
+## Check if MCP server is running
+check-server:
+	@echo "$(BLUE)Checking MCP server status...$(RESET)"
+	@./tests/test_examples/test_mcp_server.sh --check-server
+
 # =============================================================================
 # UTILITIES
 # =============================================================================
@@ -113,4 +142,4 @@ clean:
 	rm -rf __pycache__ $(SRC_DIR)/**/__pycache__ $(TEST_DIR)/**/__pycache__ .pytest_cache htmlcov .mypy_cache .ruff_cache
 	@echo "$(GREEN)Cleaned.$(RESET)"
 
-.PHONY: help install setup ensure-env lint format mypy test coverage run example clean
+.PHONY: help install setup ensure-env lint format mypy test coverage run example agent chat test-server test-client check-server clean

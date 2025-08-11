@@ -1,56 +1,67 @@
-"""Simple FastMCP client example.
+#!/usr/bin/env python3
+"""Simple MCP Client Example.
 
-Short script demonstrating basic tool calls against the running MCP server.
-Structured so it can be imported and exercised in tests.
+This example demonstrates how to connect to an MCP server and use its tools.
+It uses the FastMCP Python client to interact with the server.
 """
+
 from __future__ import annotations
 
 import asyncio
-from typing import Any
 
 from fastmcp import Client
 
+# Server configuration
 SERVER_URL = "http://127.0.0.1:8000/mcp/"
 
 
-async def run_example(base_url: str = SERVER_URL) -> dict[str, Any]:
-    """Run the example interactions and return collected results.
+async def main() -> None:
+    """Simple example of using MCP tools."""
+    print("🔗 Connecting to MCP server...")
+    print(f"📍 Server URL: {SERVER_URL}")
 
-    Returns a dict so tests can assert deterministically.
-    """
-    outputs: dict[str, Any] = {}
-    async with Client(base_url) as client:
-        await client.ping()
-        print("Server is reachable!")
-        outputs["ping"] = True
+    try:
+        async with Client(SERVER_URL) as client:
+            # Test server connectivity
+            await client.ping()
+            print("✅ Server connection successful")
 
-        tz_res = await client.call_tool(
-            "convert_timezone",
-            {
-                "dt": "2025-08-10T09:30:00",
-                "from_tz": "Europe/Madrid",
-                "to_tz": "America/New_York",
-            },
-        )
-        print("Convert Europe/Madrid -> America/New_York:", tz_res.data)
-        outputs["convert_timezone"] = tz_res.data
+            # Discover available tools
+            tools = await client.list_tools()
+            print(f"\n🔧 Available tools ({len(tools)}):")
+            for tool in tools:
+                print(f"   • {tool.name}: {tool.description}")
 
-        unix_res = await client.call_tool(
-            "to_unix_time",
-            {
-                "dt": "2025-08-10T09:30:00+02:00",
-                "unit": "milliseconds",
-            },
-        )
-        print("Unix time (ms):", unix_res.data)
-        outputs["to_unix_time"] = unix_res.data
+            # Example 1: Convert timezone
+            print("\n🌍 Example 1: Timezone conversion")
+            result = await client.call_tool(
+                "convert_timezone",
+                {
+                    "dt": "2025-08-11 15:30",
+                    "from_tz": "Europe/Madrid",
+                    "to_tz": "America/New_York",
+                },
+            )
+            print(f"   Madrid 15:30 → NYC: {result}")
 
-    return outputs
+            # Example 2: Unix timestamp
+            print("\n⏰ Example 2: Unix timestamp")
+            result = await client.call_tool(
+                "to_unix_time",
+                {
+                    "dt": "2025-01-01T00:00:00Z",
+                    "unit": "seconds",
+                },
+            )
+            print(f"   2025-01-01 00:00:00 UTC → {result} seconds")
+
+            print("\n🎉 All examples completed successfully!")
+
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        print("\n💡 Make sure the MCP server is running:")
+        print("   uv run python scripts/run_server.py")
 
 
-async def main() -> None:  # pragma: no cover - thin wrapper
-    await run_example()
-
-
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":
     asyncio.run(main())

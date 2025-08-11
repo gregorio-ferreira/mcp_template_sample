@@ -1,4 +1,5 @@
 """Pydantic models for type safety and validation."""
+
 from __future__ import annotations
 
 from datetime import datetime

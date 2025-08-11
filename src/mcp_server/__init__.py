@@ -1,4 +1,5 @@
 """MCP Server Template Package."""
+
 from __future__ import annotations
 
 from .models import TimezoneConvertInput, UnixTimeInput, ToolResult

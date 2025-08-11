@@ -1,4 +1,5 @@
 """Tests for time tools."""
+
 from __future__ import annotations
 
 from mcp_server.tools.time_tools import convert_timezone, to_unix_time
@@ -44,8 +45,6 @@ class TestDatetimeParser:
         assert offset is not None and offset.total_seconds() == 0
 
     def test_parse_with_assumed_tz(self) -> None:
-        dt_val = parse_datetime(
-            "2025-01-01 00:00:00", assume_tz="Europe/Madrid"
-        )
+        dt_val = parse_datetime("2025-01-01 00:00:00", assume_tz="Europe/Madrid")
         assert dt_val.tzinfo is not None
         assert "Madrid" in str(dt_val.tzinfo)
