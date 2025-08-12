@@ -28,8 +28,11 @@ class MCPConversationalAgent:
         self.tools = []
         self.conversation_history: list[dict[str, str]] = []
 
-    async def initialize(self) -> bool:
+    async def initialize(self, skip_ai: bool = False) -> bool:
         """Initialize the agent with MCP tools.
+
+        Args:
+            skip_ai: If True, only connect to MCP server without AI initialization
 
         Returns:
             True if successfully initialized with LLM, False for offline mode.
@@ -62,6 +65,11 @@ class MCPConversationalAgent:
             print(f"🔧 Found {len(self.tools)} tools:")
             for tool in self.tools:
                 print(f"   • {tool.name}: {tool.description}")
+
+            # Skip AI initialization if requested
+            if skip_ai:
+                print("\n🔧 Skipping AI initialization (offline mode)")
+                return False
 
             # Try to initialize LLM-powered agent
             if os.getenv("OPENAI_API_KEY"):
@@ -129,6 +137,9 @@ class MCPConversationalAgent:
 
             except KeyboardInterrupt:
                 print("\n\n👋 Goodbye!")
+                break
+            except EOFError:
+                print("\n\n📄 End of input reached. Goodbye!")
                 break
             except Exception as e:
                 print(f"\n❌ Error: {e}")
@@ -198,6 +209,11 @@ class MCPConversationalAgent:
             except KeyboardInterrupt:
                 print("\n\n👋 Goodbye!")
                 break
+            except EOFError:
+                print("\n\n📄 End of input reached. Goodbye!")
+                break
+            except Exception as e:
+                print(f"❌ Error: {e}")
             except Exception as e:
                 print(f"❌ Error: {e}")
 
@@ -355,7 +371,7 @@ async def main() -> int:
     try:
         # Initialize the agent
         force_offline = "--offline" in sys.argv
-        has_ai = False if force_offline else await agent.initialize()
+        has_ai = await agent.initialize(skip_ai=force_offline)
 
         if "--demo" in sys.argv:
             # Run examples and exit
