@@ -18,8 +18,10 @@ mcp = FastMCP(app_name)
 def register_tools() -> None:
     """Register all tool functions with the MCP server.
 
-    Idempotent: calling multiple times won't duplicate registrations due to
-    FastMCP's internal handling (safe in test setups).
+    Tools accept Pydantic input models (``TimezoneConvertInput`` and
+    ``UnixTimeInput``) for validation. Idempotent: calling multiple times won't
+    duplicate registrations due to FastMCP's internal handling (safe in test
+    setups).
     """
     registered_before = {t.name for t in getattr(mcp, "tools", [])}
     # Core tools
