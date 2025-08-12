@@ -352,27 +352,24 @@ def get_config() -> ServerConfig:
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime, timezone
 from typing import Optional
 
 from dateutil import parser as dateutil_parser
 from zoneinfo import ZoneInfo
 
-logger = logging.getLogger(__name__)
-
 
 def parse_datetime(dt: str, assume_tz: Optional[str] = None) -> datetime:
     """
     Parse a wide range of datetime strings into an aware datetime.
-    
+
     Args:
         dt: Datetime string to parse
         assume_tz: Optional IANA timezone to assume for naive datetimes
-        
+
     Returns:
         Timezone-aware datetime object
-        
+
     Raises:
         ValueError: If datetime cannot be parsed
     """
@@ -382,38 +379,20 @@ def parse_datetime(dt: str, assume_tz: Optional[str] = None) -> datetime:
         return datetime.fromtimestamp(timestamp, tz=timezone.utc)
     except (ValueError, TypeError):
         pass
-    
+
     try:
         parsed = dateutil_parser.parse(dt)
     except Exception as e:
         raise ValueError(f"Cannot parse datetime: {dt}") from e
-    
+
     # Make timezone-aware if naive
     if parsed.tzinfo is None:
         if assume_tz:
-            try:
-                parsed = parsed.replace(tzinfo=ZoneInfo(assume_tz))
-            except Exception:
-                logger.warning(f"Invalid timezone {assume_tz}, using UTC")
-                parsed = parsed.replace(tzinfo=timezone.utc)
+            parsed = parsed.replace(tzinfo=ZoneInfo(assume_tz))
         else:
             parsed = parsed.replace(tzinfo=timezone.utc)
-    
+
     return parsed
-
-
-def setup_logging(level: str = "INFO") -> None:
-    """
-    Set up logging configuration.
-    
-    Args:
-        level: Logging level
-    """
-    logging.basicConfig(
-        level=getattr(logging, level),
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
 ```
 
 ### src/mcp_server/tools/__init__.py
@@ -712,12 +691,12 @@ def filter_data(
 
 from __future__ import annotations
 
-import logging
+import structlog
 
 from mcp.server.fastmcp import FastMCP
 
 from mcp_server.config import get_config
-from mcp_server.utils import setup_logging
+from mcp_server.core.logging import configure_logging
 
 # Import all tools
 from mcp_server.tools import (
@@ -729,7 +708,7 @@ from mcp_server.tools import (
 # from mcp_server.tools.file_tools import read_file, write_file, list_directory
 # from mcp_server.tools.data_tools import parse_json, format_json, filter_data
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Create the FastMCP instance
 mcp = FastMCP("MCP Server Template")
@@ -758,7 +737,7 @@ def register_tools() -> None:
 def main() -> None:
     """Main entry point for the server."""
     config = get_config()
-    setup_logging(config.log_level)
+    configure_logging(config.log_level)
     
     logger.info("Starting MCP server...")
     logger.info(f"Configuration: {config.model_dump()}")
