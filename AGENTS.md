@@ -12,7 +12,7 @@
 - Python 3.13+ with modern typing and Pydantic validation
 - UV for package management and execution
 - LangChain/LangGraph for AI agent integration
-- OpenAI GPT-4o-mini for conversational capabilities
+- OpenAI gpt-5-mini for conversational capabilities
 
 ## Repository Structure & Navigation
 
@@ -173,7 +173,7 @@ OPENAI_API_KEY=your-api-key-here  # In .env file
 - **MCP Server** provides tools via HTTP
 - **LangChain MCP Adapters** bridge MCP ↔ LangChain
 - **LangGraph** handles conversation flow and memory
-- **OpenAI GPT-4o-mini** powers natural language understanding
+- **OpenAI gpt-5-mini** powers natural language understanding
 
 ## Environment Configuration
 

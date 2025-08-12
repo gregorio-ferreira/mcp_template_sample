@@ -95,9 +95,9 @@ class MCPConversationalAgent:
             from langchain.chat_models import init_chat_model
             from langgraph.prebuilt import create_react_agent
 
-            model = init_chat_model("openai:gpt-4o-mini")
+            model = init_chat_model("openai:gpt-5-mini-2025-08-07")
             self.agent = create_react_agent(model, self.tools)
-            print("✅ AI agent initialized with OpenAI GPT-4o-mini")
+            print("✅ AI agent initialized with OpenAI gpt-5-mini-2025-08-07")
             return True
 
         except ImportError:

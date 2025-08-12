@@ -166,7 +166,7 @@ async def main():
 
     # 3) Create a simple ReAct-style agent with those tools
     # Use any chat model supported by LangChain (OpenAI shown here).
-    model = init_chat_model("openai:gpt-4.1")
+    model = init_chat_model("openai:gpt-5-mini")
     agent = create_react_agent(model, tools)
 
     # 4) Try a couple of calls
