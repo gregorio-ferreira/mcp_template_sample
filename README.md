@@ -131,7 +131,6 @@ mypy src/
 
 ```bash
 # Format code
-black src/ tests/
 ruff format src/ tests/
 
 # Lint

@@ -2,8 +2,9 @@
 
 import asyncio
 import sys
+from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any
 
 import pytest
 from mcp.server.fastmcp import FastMCP
@@ -16,7 +17,7 @@ from mcp_server.server import mcp, register_tools  # noqa: E402
 
 
 @pytest.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
+def event_loop() -> Generator[asyncio.AbstractEventLoop]:
     """Create event loop for async tests."""
     loop = asyncio.new_event_loop()
     yield loop

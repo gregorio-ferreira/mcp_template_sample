@@ -70,7 +70,6 @@ Create a new file `src/mcp_server/tools/my_api_tools.py`:
 ```python
 """Tools for integrating with My API service."""
 from typing import Annotated, Optional
-import httpx
 from pydantic import BaseModel
 
 
@@ -90,18 +89,15 @@ async def get_user_data(
     Perfect for AI agents that need access to user data.
     """
     try:
-        async with httpx.AsyncClient() as client:
-            url = f"https://my-api.com/users/{user_id}"
-            params = {"details": include_details}
-            response = await client.get(url, params=params)
-            response.raise_for_status()
-            
-            return ApiResponse(
-                data=response.json(),
-                status="success"
-            )
-    except httpx.HTTPStatusError as e:
-        raise ValueError(f"API request failed: {e.response.status_code}")
+        # Use your preferred HTTP client to fetch data from your API
+        data = {
+            "id": user_id,
+            "details": include_details,
+        }
+        return ApiResponse(
+            data=data,
+            status="success",
+        )
     except Exception as e:
         raise RuntimeError(f"Failed to fetch user data: {e}")
 
@@ -234,7 +230,7 @@ async def send_notification(
     priority: Annotated[str, "Priority level"] = "normal",
 ) -> bool:
     """Send notification via external service."""
-    # Implementation with requests/httpx
+    # Implementation with requests
     pass
 ```
 
@@ -276,7 +272,6 @@ dependencies = [
     "fastmcp>=2.0",
     "pydantic>=2.5",
     # Add your dependencies:
-    "httpx>=0.27",        # For HTTP clients
     "asyncpg>=0.29",      # For PostgreSQL
     "boto3>=1.34",        # For AWS services
     "redis>=5.0",         # For caching
