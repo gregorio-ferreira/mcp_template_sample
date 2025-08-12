@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Any
+from zoneinfo import available_timezones
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -41,9 +42,10 @@ class TimezoneConvertInput(BaseModel):
 
     @field_validator("from_tz", "to_tz")
     @classmethod
-    def validate_timezone(cls, v: str) -> str:  # pragma: no cover - simple placeholder
-        """Validate IANA timezone names (placeholder)."""
-        # Could integrate with zoneinfo.available_timezones() for stricter validation.
+    def validate_timezone(cls, v: str) -> str:
+        """Validate that a timezone name exists in the system database."""
+        if v not in available_timezones():
+            raise ValueError(f"Invalid timezone: {v}")
         return v
 
 

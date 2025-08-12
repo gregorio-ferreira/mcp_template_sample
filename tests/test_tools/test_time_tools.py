@@ -1,5 +1,7 @@
 """Tests for time tools."""
 
+import pytest
+
 from mcp_server.models import TimezoneConvertInput, UnixTimeInput
 from mcp_server.tools.time_tools import convert_timezone, to_unix_time
 from mcp_server.utils import parse_datetime
@@ -26,6 +28,14 @@ class TestTimezoneConversion:
             )
         )
         assert result == "2025-08-10 07:30"
+
+    def test_invalid_timezone(self) -> None:
+        with pytest.raises(ValueError, match="Invalid timezone"):
+            TimezoneConvertInput(
+                dt="2025-08-10 09:30",
+                from_tz="Europe/Invalid",
+                to_tz="UTC",
+            )
 
 
 class TestUnixTime:
