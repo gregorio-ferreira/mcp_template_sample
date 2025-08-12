@@ -4,20 +4,21 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from functools import wraps
-from typing import Any, TypeVar
+from typing import ParamSpec, TypeVar
 
-F = TypeVar("F", bound=Callable[..., Any])
+P = ParamSpec("P")
+R = TypeVar("R")
 
 logger = logging.getLogger(__name__)
 
 
-def monitor_performance(func: F) -> F:
+def monitor_performance(func: Callable[P, R]) -> Callable[P, R]:  # noqa: UP047
     """Decorator to monitor function performance."""
 
     @wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         start_time = time.perf_counter()
         try:
             result = func(*args, **kwargs)
@@ -30,14 +31,16 @@ def monitor_performance(func: F) -> F:
                 duration * 1000,
             )
 
-    return wrapper  # type: ignore[return-value]
+    return wrapper
 
 
-def monitor_async_performance(func: F) -> F:
+def monitor_async_performance(  # noqa: UP047
+    func: Callable[P, Awaitable[R]],
+) -> Callable[P, Awaitable[R]]:
     """Decorator to monitor async function performance."""
 
     @wraps(func)
-    async def wrapper(*args: Any, **kwargs: Any) -> Any:
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         start_time = time.perf_counter()
         try:
             result = await func(*args, **kwargs)
@@ -50,4 +53,4 @@ def monitor_async_performance(func: F) -> F:
                 duration * 1000,
             )
 
-    return wrapper  # type: ignore[return-value]
+    return wrapper

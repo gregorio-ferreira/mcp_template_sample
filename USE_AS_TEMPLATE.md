@@ -45,6 +45,77 @@ echo "# Add your tool imports here" > src/mcp_server/tools/__init__.py
 ### 3. Add Your Tools
 Follow the patterns in the existing code to add your own tools.
 
+### 4. Adapt an Existing API Client
+
+If you already have a Python client for your API, convert its methods into MCP tools so
+agents can use them.
+
+1. **Create a tool module** in `src/mcp_server/tools/` and move or copy over the relevant
+   client logic.
+2. **Replace classes with functions.** Each API action should be a function with
+   `Annotated` parameters and a clear docstring.
+3. **Use async HTTP clients** (`httpx.AsyncClient`) when calling external services. Keep
+   authentication keys in the environment.
+4. **Model responses** with Pydantic classes or plain dictionaries that contain only the
+   fields agents need.
+5. **Register the functions** in `src/mcp_server/server.py` and optionally re-export them
+   from `src/mcp_server/tools/__init__.py`.
+6. **Write tests** mirroring the patterns in `tests/test_tools/` and
+   `tests/test_examples/`.
+
+#### Example conversion
+
+Original client:
+
+```python
+def get_user(user_id: str) -> dict:
+    resp = requests.get(f"{BASE_URL}/users/{user_id}", headers={"Authorization": API_KEY})
+    resp.raise_for_status()
+    return resp.json()
+```
+
+MCP tool:
+
+```python
+import httpx, os
+from typing import Annotated
+from pydantic import BaseModel
+
+
+class User(BaseModel):
+    id: str
+    name: str
+
+
+BASE_URL = os.environ["MY_API_URL"]
+API_KEY = os.environ["MY_API_KEY"]
+
+
+async def get_user(
+    user_id: Annotated[str, "User ID to fetch"],
+) -> User:
+    async with httpx.AsyncClient(
+        base_url=BASE_URL,
+        headers={"Authorization": f"Bearer {API_KEY}"},
+    ) as client:
+        response = await client.get(f"/users/{user_id}")
+        response.raise_for_status()
+        return User.model_validate(response.json())
+```
+
+Don't forget to update `server.py`:
+
+```python
+from mcp_server.tools.my_api_tools import get_user
+
+
+def register_tools() -> None:
+    mcp.tool()(get_user)
+```
+
+Running `make format`, `make lint`, `make mypy`, and `make test` ensures the new tool
+behaves correctly.
+
 ## 📚 Reference Examples (Remove These)
 
 The template includes these **reference tools** that you should replace:
