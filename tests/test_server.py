@@ -1,5 +1,7 @@
 """Server structure tests using singleton registration pattern."""
 
+import anyio
+
 from mcp_server.server import mcp, register_tools
 
 
@@ -12,5 +14,5 @@ class TestServerStructure:
 
     def test_tool_registration_count(self) -> None:
         register_tools()
-        names = {t.name for t in getattr(mcp, "tools", [])}
-        assert {"convert_timezone", "to_unix_time"}.issubset(names)
+        tools = anyio.run(mcp.get_tools)
+        assert {"convert_timezone", "to_unix_time"}.issubset(tools.keys())

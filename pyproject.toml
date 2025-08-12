@@ -50,6 +50,7 @@ agent = [
 
 [project.scripts]
 mcp-server = "mcp_server.server:main"
+validate-server = "scripts.validate_server:main"
 
 [build-system]
 requires = ["hatchling"]
