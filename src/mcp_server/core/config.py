@@ -14,13 +14,44 @@ ENV_FILE_CANDIDATES = [".env", ".env.local"]
 class ServerSettings(BaseSettings):
     """Runtime configuration sourced from environment variables."""
 
+    # MCP Server settings
     host: str = "127.0.0.1"
     port: int = 8000
     path: str = "/mcp"
     debug: bool = False
     log_level: str = "INFO"
 
-    model_config = SettingsConfigDict(env_prefix="MCP_", case_sensitive=False)
+    # Emplifi API credentials
+    emplifi_token: str | None = None
+    emplifi_secret: str | None = None
+
+    # OpenAI API credentials (for AI-powered chat agent)
+    openai_api_key: str | None = None
+
+    model_config = SettingsConfigDict(
+        env_prefix="",  # No prefix to allow direct env var names
+        case_sensitive=False,
+        env_file=".env",
+        extra="ignore"  # Ignore extra environment variables
+    )
+
+    def __init__(self, **data: str | int | bool | None) -> None:
+        """Initialize settings with support for MCP_ prefixed variables."""
+        super().__init__(**data)
+        
+        # Override with MCP_ prefixed values if they exist
+        import os
+        if os.getenv("MCP_HOST"):
+            self.host = os.getenv("MCP_HOST", self.host)
+        if os.getenv("MCP_PORT"):
+            self.port = int(os.getenv("MCP_PORT", str(self.port)))
+        if os.getenv("MCP_PATH"):
+            self.path = os.getenv("MCP_PATH", self.path)
+        if os.getenv("MCP_DEBUG"):
+            debug_val = os.getenv("MCP_DEBUG", "").lower()
+            self.debug = debug_val in ("true", "1", "yes")
+        if os.getenv("MCP_LOG_LEVEL"):
+            self.log_level = os.getenv("MCP_LOG_LEVEL", self.log_level)
 
 
 def load_environment() -> None:
@@ -51,4 +82,23 @@ def get_server_url() -> str:
     return f"http://{cfg.host}:{cfg.port}{path}"
 
 
-__all__ = ["ServerSettings", "get_config", "get_server_url", "load_environment"]
+def get_emplifi_credentials() -> tuple[str | None, str | None]:
+    """Get Emplifi API credentials from configuration."""
+    config = get_config()
+    return config.emplifi_token, config.emplifi_secret
+
+
+def get_openai_api_key() -> str | None:
+    """Get OpenAI API key from configuration."""
+    config = get_config()
+    return config.openai_api_key
+
+
+__all__ = [
+    "ServerSettings",
+    "get_config",
+    "get_server_url",
+    "load_environment",
+    "get_emplifi_credentials",
+    "get_openai_api_key"
+]

@@ -1,9 +1,9 @@
 #!/usr/bin/env -S uv run python
-"""MCP Conversational Agent.
+"""MCP Conversational Agent for Emplifi Listening API.
 
-This script creates an interactive chat agent that can use MCP tools.
+This script creates an interactive chat agent that can use Emplifi MCP tools.
 It supports both LLM-powered conversations (with OpenAI API key) and
-offline tool testing mode.
+offline tool testing mode for social media listening data.
 """
 
 from __future__ import annotations
@@ -16,6 +16,10 @@ from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Import centralized configuration
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
+from mcp_server.core.config import get_openai_api_key
 
 # Server configuration
 SERVER_URL = "http://127.0.0.1:8000/mcp/"
@@ -75,7 +79,8 @@ class MCPConversationalAgent:
                 return False
 
             # Try to initialize LLM-powered agent
-            if os.getenv("OPENAI_API_KEY"):
+            openai_key = get_openai_api_key()
+            if openai_key:
                 return await self._initialize_llm_agent()
             else:
                 print("\n⚠️  OPENAI_API_KEY not set")
@@ -117,8 +122,8 @@ class MCPConversationalAgent:
 
     async def _ai_chat_mode(self) -> None:
         """AI-powered chat mode with conversation memory."""
-        print("\n🤖 AI Chat Mode - Ask me anything about timezones and time!")
-        print("💬 The AI can use timezone and time conversion tools")
+        print("\n🤖 AI Chat Mode - Ask me about social media listening!")
+        print("💬 The AI can use Emplifi tools to fetch posts and analyze data")
         print("⌨️  Type 'quit', 'exit', or press Ctrl+C to exit")
         print("=" * 60)
 
@@ -155,9 +160,11 @@ class MCPConversationalAgent:
 
             # Add system context
             system_context = (
-                "You are a helpful assistant with access to timezone and time "
-                "conversion tools. Help users with time-related questions and "
-                "conversions. Be concise but informative."
+                "You are a helpful assistant with access to Emplifi social "
+                "media listening tools. Help users analyze social media posts, "
+                "brand mentions, and sentiment data. Be concise but informative. "
+                "You can list listening queries, fetch recent posts, and retrieve "
+                "posts from specific date ranges."
             )
             messages.append(system_context)
 
@@ -181,33 +188,37 @@ class MCPConversationalAgent:
         """Offline mode - direct tool testing without AI."""
         print("\n🔧 Offline Tool Testing Mode")
         print("📋 Available commands:")
-        print("   1. timezone    - Test timezone conversion")
-        print("   2. unix        - Test Unix time conversion")
-        print("   3. list        - List all available tools")
-        print("   4. demo        - Run demo scenarios")
-        print("   5. help        - Show this help")
-        print("   6. quit        - Exit")
+        print("   1. queries     - List listening queries")
+        print("   2. recent      - Test recent posts retrieval")
+        print("   3. fetch       - Test date range posts")
+        print("   4. list        - List all available tools")
+        print("   5. demo        - Run demo scenarios")
+        print("   6. help        - Show this help")
+        print("   7. quit        - Exit")
         print("=" * 60)
 
         while True:
             try:
                 user_input = input("\n⌨️  Command: ").strip().lower()
 
-                if user_input in ["quit", "exit", "q", "6"]:
+                if user_input in ["quit", "exit", "q", "7"]:
                     break
-                elif user_input in ["timezone", "1"]:
-                    await self._demo_timezone_conversion()
-                elif user_input in ["unix", "2"]:
-                    await self._demo_unix_time()
-                elif user_input in ["list", "3"]:
+                elif user_input in ["queries", "1"]:
+                    await self._demo_list_queries()
+                elif user_input in ["recent", "2"]:
+                    await self._demo_recent_posts()
+                elif user_input in ["fetch", "3"]:
+                    await self._demo_fetch_posts()
+                elif user_input in ["list", "4"]:
                     await self._list_tools()
-                elif user_input in ["demo", "4"]:
+                elif user_input in ["demo", "5"]:
                     await self._run_demo_scenarios()
-                elif user_input in ["help", "5"]:
+                elif user_input in ["help", "6"]:
                     print("📋 Available commands:")
-                    print("   1. timezone | 2. unix | 3. list | 4. demo | 5. help | 6. quit")
+                    print("   1. queries | 2. recent | 3. fetch | 4. list")
+                    print("   5. demo | 6. help | 7. quit")
                 else:
-                    print("❓ Unknown command. Type 'help' for available commands.")
+                    print("❓ Unknown command. Type 'help' for commands.")
 
             except KeyboardInterrupt:
                 print("\n\n👋 Goodbye!")
@@ -239,84 +250,169 @@ class MCPConversationalAgent:
                     param_desc = getattr(param_info, "description", "No description")
                     print(f"     • {param_name} ({param_type}): {param_desc}")
 
-    async def _demo_timezone_conversion(self) -> None:
-        """Demo timezone conversion with interactive input."""
-        print("\n🌍 Timezone Conversion Demo")
+    async def _demo_list_queries(self) -> None:
+        """Demo listing available listening queries."""
+        print("\n📋 Listening Queries Demo")
 
-        examples = [
-            {
-                "dt": "2025-08-11 15:30",
-                "from_tz": "Europe/Madrid",
-                "to_tz": "America/New_York",
-                "desc": "Madrid afternoon to NYC",
-            },
-            {
-                "dt": "2025-12-25 00:00",
-                "from_tz": "Asia/Tokyo",
-                "to_tz": "Europe/London",
-                "desc": "Christmas midnight Tokyo to London",
-            },
-            {
-                "dt": "2025-06-15T14:30:00",
-                "from_tz": "America/Los_Angeles",
-                "to_tz": "UTC",
-                "desc": "LA time to UTC",
-            },
-        ]
+        try:
+            # Find the list queries tool
+            for tool in self.tools:
+                if tool.name == "list_listening_queries":
+                    print("   Fetching all listening queries...")
+                    result = await tool.ainvoke({})
+                    
+                    # Handle string result (JSON) or list result
+                    if isinstance(result, str):
+                        import json
+                        queries = json.loads(result)
+                    elif isinstance(result, list):
+                        queries = result
+                    else:
+                        queries = result.get('result', [])
+                    
+                    print(f"\n   📊 Found {len(queries)} listening queries")
+                    
+                    # Show first 5 queries as examples
+                    print("\n   📝 Sample queries:")
+                    for i, query in enumerate(queries[:5], 1):
+                        if isinstance(query, dict):
+                            name = query.get('name', 'Unknown')
+                            status = query.get('status', 'Unknown')
+                        else:
+                            name = getattr(query, 'name', 'Unknown')
+                            status = getattr(query, 'status', 'Unknown')
+                        print(f"      {i}. {name} - Status: {status}")
+                    
+                    if len(queries) > 5:
+                        print(f"      ... and {len(queries) - 5} more")
+                    
+                    break
+            else:
+                print("   ❌ list_listening_queries tool not found")
+        except Exception as e:
+            print(f"   ❌ Error: {e}")
+            import traceback
+            traceback.print_exc()
 
-        for i, example in enumerate(examples, 1):
-            print(f"\n{i}. {example['desc']}:")
-            try:
-                # Find the timezone conversion tool
-                for tool in self.tools:
-                    if tool.name == "convert_timezone":
-                        result = await tool.ainvoke(
-                            {
-                                "dt": example["dt"],
-                                "from_tz": example["from_tz"],
-                                "to_tz": example["to_tz"],
-                            }
-                        )
-                        print(f"   📅 {example['dt']} ({example['from_tz']})")
-                        print(f"   ➡️  {result} ({example['to_tz']})")
-                        break
-                else:
-                    print("   ❌ Timezone conversion tool not found")
-            except Exception as e:
-                print(f"   ❌ Error: {e}")
+    async def _demo_recent_posts(self) -> None:
+        """Demo recent posts retrieval."""
+        print("\n📱 Recent Posts Demo")
+        
+        # BAYER query ID that we know works
+        bayer_query_id = "LNQ_1140092_66fe2dcd3e9eb298096e8db3"
 
-    async def _demo_unix_time(self) -> None:
-        """Demo Unix time conversion."""
-        print("\n⏰ Unix Time Conversion Demo")
+        try:
+            # Find the recent posts tool
+            for tool in self.tools:
+                if tool.name == "get_recent_posts":
+                    print("   Getting recent posts for BAYER query...")
+                    result = await tool.ainvoke({
+                        "query_id": bayer_query_id,
+                        "days_back": 7,
+                        "limit": 3
+                    })
+                    
+                    # Handle string result (JSON) or list result
+                    if isinstance(result, str):
+                        import json
+                        posts = json.loads(result)
+                    elif isinstance(result, list):
+                        posts = result
+                    else:
+                        posts = result.get('result', [])
+                    
+                    print(f"\n   📊 Found {len(posts)} recent posts")
+                    
+                    if posts:
+                        print("\n   📝 Sample posts:")
+                        for i, post in enumerate(posts[:3], 1):
+                            if isinstance(post, dict):
+                                platform = post.get('platform', 'Unknown')
+                                interactions = post.get('interactions', 0)
+                                sentiment = post.get('sentiment', 'Unknown')
+                                message = post.get('message', '')[:80]
+                            else:
+                                platform = getattr(post, 'platform', 'Unknown')
+                                interactions = getattr(post, 'interactions', 0)
+                                sentiment = getattr(post, 'sentiment', 'Unknown')
+                                message = getattr(post, 'message', '')[:80]
+                            
+                            print(f"      {i}. {platform.upper()} - "
+                                  f"{interactions:,} interactions")
+                            print(f"         Sentiment: {sentiment}")
+                            print(f"         Message: {message}...")
+                    else:
+                        print("   No recent posts found")
+                    
+                    break
+            else:
+                print("   ❌ get_recent_posts tool not found")
+        except Exception as e:
+            print(f"   ❌ Error: {e}")
 
-        examples = [
-            {"dt": "2025-01-01T00:00:00Z", "unit": "seconds", "desc": "New Year 2025 in seconds"},
-            {
-                "dt": "2025-08-11T12:00:00+02:00",
-                "unit": "milliseconds",
-                "desc": "Today noon CEST in milliseconds",
-            },
-        ]
+    async def _demo_fetch_posts(self) -> None:
+        """Demo fetching posts from specific date range."""
+        print("\n📅 Date Range Posts Demo")
+        
+        # BAYER query ID and known working date range
+        bayer_query_id = "LNQ_1140092_66fe2dcd3e9eb298096e8db3"
+        start_date = "2025-08-05"
+        end_date = "2025-08-12"
 
-        for i, example in enumerate(examples, 1):
-            print(f"\n{i}. {example['desc']}:")
-            try:
-                for tool in self.tools:
-                    if tool.name == "to_unix_time":
-                        result = await tool.ainvoke({"dt": example["dt"], "unit": example["unit"]})
-                        print(f"   📅 {example['dt']}")
-                        print(f"   ➡️  {result} {example['unit']}")
-                        break
-                else:
-                    print("   ❌ Unix time conversion tool not found")
-            except Exception as e:
-                print(f"   ❌ Error: {e}")
+        try:
+            # Find the fetch posts tool
+            for tool in self.tools:
+                if tool.name == "fetch_listening_posts":
+                    print(f"   Fetching posts from {start_date} to {end_date}...")
+                    result = await tool.ainvoke({
+                        "query_ids": [bayer_query_id],
+                        "date_start": start_date,
+                        "date_end": end_date,
+                        "limit": 5
+                    })
+                    
+                    # Handle string result (JSON) or list result
+                    if isinstance(result, str):
+                        import json
+                        posts = json.loads(result)
+                    elif isinstance(result, list):
+                        posts = result
+                    else:
+                        posts = result.get('result', [])
+                    
+                    print(f"\n   📊 Found {len(posts)} posts in date range")
+                    
+                    if posts:
+                        print("\n   📝 Sample posts:")
+                        for i, post in enumerate(posts[:3], 1):
+                            if isinstance(post, dict):
+                                platform = post.get('platform', 'Unknown')
+                                created_time = post.get('created_time', 'Unknown')
+                                created = created_time[:10]
+                                interactions = post.get('interactions', 0)
+                            else:
+                                platform = getattr(post, 'platform', 'Unknown')
+                                created_time = getattr(post, 'created_time', 'Unknown')
+                                created = created_time[:10]
+                                interactions = getattr(post, 'interactions', 0)
+                            
+                            print(f"      {i}. {platform.upper()} - {created}")
+                            print(f"         Interactions: {interactions:,}")
+                    else:
+                        print("   No posts found in date range")
+                    
+                    break
+            else:
+                print("   ❌ fetch_listening_posts tool not found")
+        except Exception as e:
+            print(f"   ❌ Error: {e}")
 
     async def _run_demo_scenarios(self) -> None:
         """Run a comprehensive demo of all capabilities."""
         print("\n🎬 Running Demo Scenarios...")
-        await self._demo_timezone_conversion()
-        await self._demo_unix_time()
+        await self._demo_list_queries()
+        await self._demo_recent_posts()
+        await self._demo_fetch_posts()
 
     async def run_example_conversations(self) -> None:
         """Run example conversations to demonstrate capabilities."""
@@ -326,9 +422,9 @@ class MCPConversationalAgent:
             return
 
         example_queries = [
-            "Convert 2:30 PM Madrid time today to New York time",
-            "What's the Unix timestamp for New Year's Eve 2025 at midnight UTC?",
-            "Convert 9 AM Tokyo time on Christmas Day 2025 to Los Angeles time",
+            "Show me recent posts about BAYER from the last week",
+            "List all available listening queries",
+            "Get posts about BAYER from August 5-12, 2025",
         ]
 
         print("\n🎬 Example AI Conversations:")
@@ -348,8 +444,8 @@ class MCPConversationalAgent:
 async def main() -> int:
     """Main entry point for the conversational agent."""
     if "--help" in sys.argv or "-h" in sys.argv:
-        print("MCP Conversational Agent")
-        print("=" * 30)
+        print("MCP Conversational Agent for Emplifi Listening API")
+        print("=" * 50)
         print("Usage:")
         print("  python mcp_chat_agent.py [OPTIONS]")
         print()
@@ -359,7 +455,9 @@ async def main() -> int:
         print("  --help       Show this help message")
         print()
         print("Environment:")
-        print("  OPENAI_API_KEY   Set to enable AI-powered conversations")
+        print("  OPENAI_API_KEY     Set to enable AI-powered conversations")
+        print("  EMPLIFI_TOKEN      Required for Emplifi API access")
+        print("  EMPLIFI_SECRET     Required for Emplifi API access")
         print()
         print("Examples:")
         print("  python mcp_chat_agent.py")
@@ -382,7 +480,7 @@ async def main() -> int:
         # Start interactive session
         print("\n🚀 Starting interactive session...")
         if has_ai:
-            print("💡 AI mode enabled - natural language conversations available")
+            print("💡 AI mode enabled - natural language conversations")
         else:
             print("🔧 Offline mode - direct tool testing available")
 
