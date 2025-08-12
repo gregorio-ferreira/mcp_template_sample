@@ -18,14 +18,16 @@ This repository is a Python template for building Model Context Protocol (MCP) s
 ### Core Directories
 ```
 src/mcp_server/           # Main package - focus here for server logic
-├── server.py            # Tool registration & FastMCP server setup
-├── tools/               # Tool implementations (add new tools here)
-│   ├── time_tools.py   # Working example: timezone & time tools
-│   ├── file_tools.py   # Template for file operations
-│   └── data_tools.py   # Template for data processing
-├── models.py           # Pydantic models for validation
-├── config.py           # Server configuration
-└── utils.py            # Shared utilities
+├── core/               # Configuration and logging utilities
+│   ├── config.py       # Server configuration
+│   └── logging.py      # Logging setup
+├── server.py          # Tool registration & FastMCP server setup
+├── tools/             # Tool implementations (add new tools here)
+│   ├── time_tools.py  # Working example: timezone & time tools
+│   ├── file_tools.py  # Template for file operations
+│   └── data_tools.py  # Template for data processing
+├── models.py          # Pydantic models for validation
+└── utils.py           # Shared utilities
 
 tests/                   # Test suite
 ├── test_tools/         # Unit tests per tool module
@@ -38,6 +40,9 @@ examples/               # Usage examples
 ├── simple_client.py   # Basic FastMCP client
 └── agent_client.py    # AI agent with LangChain
 ```
+
+The `core` package centralizes configuration loading and logging helpers used by
+the server, tests, and example scripts.
 
 ### Important Files
 - `pyproject.toml` - Dependencies, build config, tool settings

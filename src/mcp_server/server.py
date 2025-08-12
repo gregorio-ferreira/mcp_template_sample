@@ -6,8 +6,7 @@ import structlog
 from fastmcp import FastMCP
 from starlette.middleware.cors import CORSMiddleware
 
-from mcp_server.core.config import get_config
-from mcp_server.core.logging import configure_logging
+from mcp_server.core import configure_logging, get_config
 from mcp_server.tools import convert_timezone, to_unix_time
 
 logger = structlog.get_logger(__name__)

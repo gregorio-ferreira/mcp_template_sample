@@ -283,7 +283,7 @@ class ToolResult(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 ```
 
-### src/mcp_server/config.py
+### src/mcp_server/core/config.py
 
 ```python
 """Configuration management for the MCP server."""
@@ -685,8 +685,7 @@ import structlog
 
 from mcp.server.fastmcp import FastMCP
 
-from mcp_server.config import get_config
-from mcp_server.core.logging import configure_logging
+from mcp_server.core import configure_logging, get_config
 
 # Import all tools
 from mcp_server.tools import (
