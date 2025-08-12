@@ -10,6 +10,7 @@ A reusable Python template for building Model Context Protocol (MCP) servers usi
 - 📦 UV Package Management: Modern Python dependency management
 - 🔍 Best Practices: Follows Python and MCP standards
 - 🎯 Production Ready: Logging, configuration, error handling
+- 🧱 Core Utilities: Centralized configuration and logging in `mcp_server.core`
 
 ## Quick Start
 
@@ -141,6 +142,9 @@ ruff check src/ tests/
 
 ```
 ├── src/mcp_server/        # Main package
+│   ├── core/              # Configuration and logging utilities
+│   │   ├── config.py      # Server configuration
+│   │   └── logging.py     # Logging setup
 │   ├── server.py          # Server implementation & tool registration
 │   ├── tools/             # Tool category modules (time_tools, file_tools, etc.)
 │   │   ├── __init__.py    # Re-exports selected tools
@@ -148,7 +152,6 @@ ruff check src/ tests/
 │   │   ├── file_tools.py  # (Template) File utilities
 │   │   └── data_tools.py  # (Template) Data processing
 │   ├── models.py          # Pydantic models
-│   ├── config.py          # Configuration
 │   └── utils.py           # Utilities
 ├── tests/                 # Test suite (per-tool modules under test_tools/)
 │   └── test_examples/     # Integration test scripts
@@ -160,6 +163,9 @@ ruff check src/ tests/
 │   └── agent_client.py    # AI agent example
 └── scripts/               # Utility scripts
 ```
+
+The `core` package houses shared configuration and logging helpers relied on by
+the server, tests, and scripts.
 
 ## Configuration
 

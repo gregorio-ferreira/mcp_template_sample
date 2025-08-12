@@ -11,7 +11,7 @@ import asyncio
 
 from fastmcp import Client
 
-from mcp_server.core.config import get_server_url
+from mcp_server.core import get_server_url
 
 # Server configuration
 SERVER_URL = get_server_url()

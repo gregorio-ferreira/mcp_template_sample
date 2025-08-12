@@ -3,7 +3,7 @@
 import anyio
 import pytest
 
-from mcp_server.core import config
+from mcp_server.core import get_config
 from mcp_server.server import main, mcp, register_tools
 
 
@@ -26,7 +26,7 @@ def test_environment_configuration(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MCP_HOST", "0.0.0.0")
     monkeypatch.setenv("MCP_PORT", "9001")
     monkeypatch.setenv("MCP_PATH", "/custom")
-    config.get_config.cache_clear()
+    get_config.cache_clear()
 
     captured: dict[str, object] = {}
 
