@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 from fastmcp import Client
 
-from mcp_server.config import get_server_url
+from mcp_server.core.config import get_server_url
 
 # Skip during unit testing since this example requires a running server
 pytestmark = pytest.mark.skip(reason="integration example requires running MCP server")
