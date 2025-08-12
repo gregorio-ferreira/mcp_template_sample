@@ -1,17 +1,26 @@
-"""Validate MCP server functionality."""
+"""Validate registered tools in the MCP server.
 
-import asyncio
+Usage:
+    uv run validate-server
+    # or
+    uv run python scripts/validate_server.py
+"""
 
-from mcp_server.server import create_server
+from __future__ import annotations
+
+import json
+
+import anyio
+
+from mcp_server.server import mcp, register_tools
 
 
 def main() -> None:
-    server = create_server("Validation")
-    tool_registry = getattr(server, "_tool_registry", {})
-    summary = {
-        "tool_count": len(tool_registry),
-        "tools": sorted(tool_registry.keys()),
-    }
+    """Register tools and print summary."""
+    register_tools()
+    tools = anyio.run(mcp.get_tools)
+    names = sorted(tools.keys())
+    summary = {"tool_count": len(names), "tools": names}
     print(json.dumps(summary, indent=2))
 
 
