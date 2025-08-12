@@ -148,7 +148,8 @@ ruff check src/ tests/
 │   │   ├── __init__.py    # Re-exports selected tools
 │   │   ├── time_tools.py  # Time-related tools
 │   │   ├── file_tools.py  # (Template) File utilities
-│   │   └── data_tools.py  # (Template) Data processing
+│   │   ├── data_tools.py  # (Template) Data processing
+│   │   └── emplifi_tools.py # Emplifi Listening API integration
 │   ├── models.py          # Pydantic models
 │   └── utils.py           # Utilities
 ├── tests/                 # Test suite (per-tool modules under test_tools/)
@@ -157,10 +158,57 @@ ruff check src/ tests/
 │       ├── test_mcp_client.py      # Python client testing
 │       └── mcp_chat_agent.py       # Interactive AI agent
 └── scripts/               # Utility scripts
+    └── emplifi_example.py  # Emplifi API usage example
 ```
 
 The `core` package houses shared configuration and logging helpers relied on by
 the server, tests, and scripts.
+
+## Integrated Tools
+
+This template includes several categories of tools:
+
+### Core Tools
+- **Time Tools**: Timezone conversion and Unix timestamp utilities
+- **File Tools**: File reading and directory listing (template examples)
+- **Data Tools**: JSON parsing and formatting utilities
+
+### Emplifi Listening API Tools
+A complete integration with the Emplifi Social Media Management platform:
+
+- **`list_listening_queries()`**: List all listening queries
+- **`fetch_listening_posts()`**: Fetch social media posts and mentions
+- **`fetch_listening_metrics()`**: Get aggregated metrics and analytics
+- **`get_recent_posts()`**: Convenience tool for recent posts
+- **`get_daily_mention_metrics()`**: Daily mention count analytics
+
+**Features:**
+- OAuth 2.0 and Basic authentication support
+- Automatic token refresh and caching
+- Pagination support for large datasets
+- Comprehensive filtering and sorting options
+- Type-safe models for all data structures
+
+See [`docs/emplifi_integration.md`](docs/emplifi_integration.md) for detailed setup and usage instructions.
+
+### Usage Example
+
+```bash
+# Set up Emplifi credentials (Basic Auth - recommended)
+export EMPLIFI_TOKEN="your_api_token"
+export EMPLIFI_SECRET="your_api_secret"
+
+# OR OAuth 2.0 (requires interactive login)
+export EMPLIFI_CLIENT_ID="your_client_id"
+export EMPLIFI_CLIENT_SECRET="your_client_secret"
+export EMPLIFI_REDIRECT_URI="http://localhost:8765/callback"
+
+# Run the example script
+python scripts/emplifi_example.py
+
+# Or use with AI agents
+python tests/test_examples/mcp_chat_agent.py
+```
 
 ## Configuration
 

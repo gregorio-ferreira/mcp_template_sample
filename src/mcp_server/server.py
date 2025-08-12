@@ -9,8 +9,13 @@ from starlette.middleware.cors import CORSMiddleware
 from mcp_server.core import configure_logging, get_config
 from mcp_server.tools import (
     convert_timezone,
+    fetch_listening_metrics,
+    fetch_listening_posts,
     format_json,
+    get_daily_mention_metrics,
+    get_recent_posts,
     list_directory,
+    list_listening_queries,
     parse_json,
     read_file,
     to_unix_time,
@@ -31,15 +36,26 @@ def register_tools() -> None:
     FastMCP's internal handling (safe in test setups).
     """
     registered_before = {t.name for t in getattr(mcp, "tools", [])}
-    # Core tools
+
+    # Core time tools
     mcp.tool()(convert_timezone)
     mcp.tool()(to_unix_time)
+
     # File tools
     mcp.tool()(read_file)
     mcp.tool()(list_directory)
+
     # Data tools
     mcp.tool()(parse_json)
     mcp.tool()(format_json)
+
+    # Emplifi Listening API tools
+    mcp.tool()(list_listening_queries)
+    mcp.tool()(fetch_listening_posts)
+    mcp.tool()(fetch_listening_metrics)
+    mcp.tool()(get_recent_posts)
+    mcp.tool()(get_daily_mention_metrics)
+
     registered_after = {t.name for t in getattr(mcp, "tools", [])}
     added = registered_after - registered_before
     if added:
@@ -50,9 +66,11 @@ def main() -> None:
     """Main entry point for the server."""
     config = get_config()
     configure_logging(config.log_level)
-    logger.info("Starting MCP server on %s:%s%s", config.host, config.port, config.path)
+    host_port_path = f"{config.host}:{config.port}{config.path}"
+    logger.info("Starting MCP server on %s", host_port_path)
     register_tools()
-    # Serve HTTP using configuration values (overridable via environment variables)
+    # Serve HTTP using configuration values
+    # (overridable via environment variables)
     # You can override host/port/path via CLI as well:
     #   fastmcp run src/mcp_server/server.py --transport http --port 9000
     mcp.run(

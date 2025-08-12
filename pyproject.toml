@@ -27,6 +27,7 @@ dependencies = [
     "starlette>=0.36",
     "uvicorn>=0.29",
     "structlog>=24.1",
+    "httpx>=0.25",
 ]
 
 [project.optional-dependencies]
@@ -44,6 +45,17 @@ agent = [
     "langchain-mcp-adapters>=0.1.9",
     "langgraph>=0.2",
     "langchain[openai]>=0.1",
+]
+
+notebook = [
+    "jupyter>=1.0",
+    "jupyterlab>=4.0",
+    "notebook>=7.0",
+    "ipykernel>=6.25",
+    "matplotlib>=3.7",
+    "pandas>=2.0",
+    "plotly>=5.15",
+    "seaborn>=0.12",
 ]
 
 [project.scripts]
@@ -83,6 +95,9 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
+markers = [
+    "integration: marks tests as integration tests (require real API credentials)",
+]
 addopts = [
     "-v",
     "--strict-markers",
