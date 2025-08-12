@@ -260,7 +260,7 @@ version = "3.22.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
-    { name = "docstring-parser", marker = "python_full_version < '4.0'" },
+    { name = "docstring-parser", marker = "python_full_version < '4'" },
     { name = "rich" },
     { name = "rich-rst" },
 ]
@@ -889,6 +889,7 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "pytz" },
     { name = "starlette" },
+    { name = "structlog" },
     { name = "typing-extensions" },
     { name = "uvicorn" },
 ]
@@ -907,6 +908,7 @@ dev = [
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "ruff" },
+    { name = "types-python-dateutil" },
 ]
 
 [package.dev-dependencies]
@@ -918,6 +920,7 @@ dev = [
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "ruff" },
+    { name = "types-python-dateutil" },
 ]
 
 [package.metadata]
@@ -939,6 +942,8 @@ requires-dist = [
     { name = "pytz", specifier = ">=2024.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.3" },
     { name = "starlette", specifier = ">=0.36" },
+    { name = "structlog", specifier = ">=24.1" },
+    { name = "types-python-dateutil", marker = "extra == 'dev'", specifier = ">=2.9" },
     { name = "typing-extensions", specifier = ">=4.9" },
     { name = "uvicorn", specifier = ">=0.29" },
 ]
@@ -953,6 +958,7 @@ dev = [
     { name = "pytest-asyncio", specifier = ">=0.23" },
     { name = "pytest-cov", specifier = ">=5.0" },
     { name = "ruff", specifier = ">=0.3" },
+    { name = "types-python-dateutil", specifier = ">=2.9" },
 ]
 
 [[package]]
@@ -1748,6 +1754,15 @@ wheels = [
 ]
 
 [[package]]
+name = "structlog"
+version = "25.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/79/b9/6e672db4fec07349e7a8a8172c1a6ae235c58679ca29c3f86a61b5e59ff3/structlog-25.4.0.tar.gz", hash = "sha256:186cd1b0a8ae762e29417095664adf1d6a31702160a46dacb7796ea82f7409e4", size = 1369138, upload-time = "2025-06-02T08:21:12.971Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a0/4a/97ee6973e3a73c74c8120d59829c3861ea52210667ec3e7a16045c62b64d/structlog-25.4.0-py3-none-any.whl", hash = "sha256:fe809ff5c27e557d14e613f45ca441aabda051d119ee5a0102aaba6ce40eed2c", size = 68720, upload-time = "2025-06-02T08:21:11.43Z" },
+]
+
+[[package]]
 name = "tenacity"
 version = "9.1.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1793,6 +1808,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/eb/79/72064e6a701c2183016abbbfedaba506d81e30e232a68c9f0d6f6fcd1574/traitlets-5.14.3.tar.gz", hash = "sha256:9ed0579d3502c94b4b3732ac120375cda96f923114522847de4b3bb98b96b6b7", size = 161621, upload-time = "2024-04-19T11:11:49.746Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/00/c0/8f5d070730d7836adc9c9b6408dec68c6ced86b304a9b26a14df072a6e8c/traitlets-5.14.3-py3-none-any.whl", hash = "sha256:b74e89e397b1ed28cc831db7aea759ba6640cb3de13090ca145426688ff1ac4f", size = 85359, upload-time = "2024-04-19T11:11:46.763Z" },
+]
+
+[[package]]
+name = "types-python-dateutil"
+version = "2.9.0.20250809"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a3/53/07dac71db45fb6b3c71c2fd29a87cada2239eac7ecfb318e6ebc7da00a3b/types_python_dateutil-2.9.0.20250809.tar.gz", hash = "sha256:69cbf8d15ef7a75c3801d65d63466e46ac25a0baa678d89d0a137fc31a608cc1", size = 15820, upload-time = "2025-08-09T03:14:14.109Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/43/5e/67312e679f612218d07fcdbd14017e6d571ce240a5ba1ad734f15a8523cc/types_python_dateutil-2.9.0.20250809-py3-none-any.whl", hash = "sha256:768890cac4f2d7fd9e0feb6f3217fce2abbfdfc0cadd38d11fba325a815e4b9f", size = 17707, upload-time = "2025-08-09T03:14:13.314Z" },
 ]
 
 [[package]]

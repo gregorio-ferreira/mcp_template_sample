@@ -1,16 +1,12 @@
 """Utility functions for the MCP server."""
 
-import logging
-from datetime import datetime, timezone
-from typing import Optional
-
-from dateutil import parser as dateutil_parser
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
-logger = logging.getLogger(__name__)
+from dateutil import parser as dateutil_parser
 
 
-def parse_datetime(dt: str, assume_tz: Optional[str] = None) -> datetime:
+def parse_datetime(dt: str, assume_tz: str | None = None) -> datetime:
     """Parse a wide range of datetime strings into an aware datetime.
 
     - Accepts ISO 8601, 'YYYY-MM-DD HH:MM', 'YYYY/MM/DD HH:MM:SS', etc.
@@ -23,13 +19,5 @@ def parse_datetime(dt: str, assume_tz: Optional[str] = None) -> datetime:
         if assume_tz:
             parsed = parsed.replace(tzinfo=ZoneInfo(assume_tz))
         else:
-            parsed = parsed.replace(tzinfo=timezone.utc)
+            parsed = parsed.replace(tzinfo=UTC)
     return parsed
-
-
-def setup_logging(level: str = "INFO") -> None:
-    """Setup structured logging for the server."""
-    logging.basicConfig(
-        level=getattr(logging, level.upper(), logging.INFO),
-        format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-    )

@@ -1,15 +1,14 @@
 """MCP Server implementation using FastMCP."""
 
-import logging
-
+import structlog
 from fastmcp import FastMCP
 from starlette.middleware.cors import CORSMiddleware
 
 from mcp_server.config import get_config
+from mcp_server.core.logging import configure_logging
 from mcp_server.tools import convert_timezone, to_unix_time
-from mcp_server.utils import setup_logging
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Singleton FastMCP instance
 app_name = "MCP Server Template"
@@ -35,7 +34,7 @@ def register_tools() -> None:
 def main() -> None:
     """Main entry point for the server."""
     config = get_config()
-    setup_logging(config.log_level)
+    configure_logging(config.log_level)
     logger.info("Starting MCP server on %s:%s%s", config.host, config.port, config.path)
     register_tools()
     # Serve HTTP using configuration values (overridable via environment variables)
