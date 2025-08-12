@@ -67,10 +67,7 @@ dependencies = [
     "fastmcp>=2.0",
     "pydantic>=2.5",
     "python-dateutil>=2.9",
-    "pytz>=2024.1",
     "python-dotenv>=1.0",
-    "httpx>=0.27",
-    "typing-extensions>=4.9",
 ]
 
 [project.optional-dependencies]
@@ -80,7 +77,6 @@ dev = [
     "pytest-cov>=5.0",
     "mypy>=1.8",
     "ruff>=0.3",
-    "black>=24.0",
     "pre-commit>=3.6",
 ]
 
@@ -104,7 +100,6 @@ dev-dependencies = [
     "pytest-cov>=5.0",
     "mypy>=1.8",
     "ruff>=0.3",
-    "black>=24.0",
     "ipython>=8.20",
 ]
 
@@ -159,7 +154,7 @@ select = [
     "SIM",  # flake8-simplify
 ]
 ignore = [
-    "E501",  # line too long (handled by black)
+    "E501",  # line too long (handled by formatter)
     "B008",  # do not perform function calls in argument defaults
 ]
 
@@ -168,11 +163,6 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
-
-[tool.black]
-line-length = 100
-target-version = ["py313"]
-include = '\.pyi?$'
 ```
 
 ### src/mcp_server/__init__.py
@@ -1216,7 +1206,6 @@ mypy src/
 
 ```bash
 # Format code
-black src/ tests/
 ruff format src/ tests/
 
 # Lint

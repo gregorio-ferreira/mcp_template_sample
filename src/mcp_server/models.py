@@ -1,8 +1,7 @@
 """Pydantic models for type safety and validation."""
 
-from datetime import datetime
 from enum import Enum
-from typing import Any, Literal, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -32,7 +31,7 @@ class TimezoneConvertInput(BaseModel):
         examples=["America/New_York", "Europe/London", "UTC"],
         description="Target IANA timezone.",
     )
-    out_format: Optional[str] = Field(
+    out_format: str | None = Field(
         None,
         examples=["%Y-%m-%d %H:%M", "%d/%m/%Y %I:%M %p"],
         description="Optional strftime format; if omitted returns ISO 8601.",
@@ -54,7 +53,7 @@ class UnixTimeInput(BaseModel):
         examples=["2025-08-10T09:30:00+02:00", "2025-08-10 09:30", "1754899800"],
         description="Datetime (string) or numeric unix timestamp to convert.",
     )
-    tz: Optional[str] = Field(
+    tz: str | None = Field(
         None,
         examples=["Europe/Madrid", "America/New_York"],
         description="Assumed IANA timezone if dt is naive; default UTC.",
