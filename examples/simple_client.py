@@ -5,6 +5,8 @@ This example demonstrates how to connect to an MCP server and use its tools.
 It uses the FastMCP Python client to interact with the server.
 """
 
+from __future__ import annotations
+
 import asyncio
 
 from fastmcp import Client
