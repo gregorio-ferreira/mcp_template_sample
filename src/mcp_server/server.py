@@ -7,7 +7,14 @@ from fastmcp import FastMCP
 from starlette.middleware.cors import CORSMiddleware
 
 from mcp_server.core import configure_logging, get_config
-from mcp_server.tools import convert_timezone, to_unix_time
+from mcp_server.tools import (
+    convert_timezone,
+    format_json,
+    list_directory,
+    parse_json,
+    read_file,
+    to_unix_time,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -19,15 +26,20 @@ mcp = FastMCP(app_name)
 def register_tools() -> None:
     """Register all tool functions with the MCP server.
 
-    Tools accept Pydantic input models (``TimezoneConvertInput`` and
-    ``UnixTimeInput``) for validation. Idempotent: calling multiple times won't
-    duplicate registrations due to FastMCP's internal handling (safe in test
-    setups).
+    Tools accept Pydantic input models or primitive types for validation.
+    Idempotent: calling multiple times won't duplicate registrations due to
+    FastMCP's internal handling (safe in test setups).
     """
     registered_before = {t.name for t in getattr(mcp, "tools", [])}
     # Core tools
     mcp.tool()(convert_timezone)
     mcp.tool()(to_unix_time)
+    # File tools
+    mcp.tool()(read_file)
+    mcp.tool()(list_directory)
+    # Data tools
+    mcp.tool()(parse_json)
+    mcp.tool()(format_json)
     registered_after = {t.name for t in getattr(mcp, "tools", [])}
     added = registered_after - registered_before
     if added:
