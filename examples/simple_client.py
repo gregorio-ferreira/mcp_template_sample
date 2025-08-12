@@ -9,8 +9,10 @@ import asyncio
 
 from fastmcp import Client
 
+from mcp_server.config import get_server_url
+
 # Server configuration
-SERVER_URL = "http://127.0.0.1:8000/mcp/"
+SERVER_URL = get_server_url()
 
 
 async def main() -> None:

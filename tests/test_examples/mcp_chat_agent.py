@@ -9,6 +9,7 @@ offline tool testing mode.
 import asyncio
 import os
 import sys
+
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -212,8 +213,6 @@ class MCPConversationalAgent:
             except EOFError:
                 print("\n\n📄 End of input reached. Goodbye!")
                 break
-            except Exception as e:
-                print(f"❌ Error: {e}")
             except Exception as e:
                 print(f"❌ Error: {e}")
 

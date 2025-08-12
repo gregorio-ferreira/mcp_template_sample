@@ -1,14 +1,14 @@
 """Data processing tools (template)."""
 
 import json
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 
 def parse_json(
     text: Annotated[str, "JSON string to parse"],
 ) -> dict[str, Any]:
     """Parse JSON string to dict."""
-    return json.loads(text)
+    return cast(dict[str, Any], json.loads(text))
 
 
 def format_json(

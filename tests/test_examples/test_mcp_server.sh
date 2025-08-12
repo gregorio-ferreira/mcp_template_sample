@@ -4,7 +4,10 @@
 
 set -e
 
-SERVER_URL="http://127.0.0.1:8000/mcp/"
+HOST="${MCP_HOST:-127.0.0.1}"
+PORT="${MCP_PORT:-8000}"
+PATH_PREFIX="${MCP_PATH:-/mcp}"
+SERVER_URL="http://${HOST}:${PORT}${PATH_PREFIX}/"
 HEADERS=(-H "Content-Type: application/json" -H "Accept: application/json, text/event-stream")
 
 echo "🧪 MCP Server Test Suite (curl)"
