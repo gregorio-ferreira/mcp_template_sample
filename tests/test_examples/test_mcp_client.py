@@ -9,10 +9,16 @@ import asyncio
 import sys
 from typing import Any
 
+import pytest
 from fastmcp import Client
 
+from mcp_server.config import get_server_url
+
+# Skip during unit testing since this example requires a running server
+pytestmark = pytest.mark.skip(reason="integration example requires running MCP server")
+
 # Server configuration
-SERVER_URL = "http://127.0.0.1:8000/mcp/"
+SERVER_URL = get_server_url()
 
 
 async def test_basic_client_functionality() -> dict[str, Any]:

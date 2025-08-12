@@ -4,9 +4,10 @@ import logging
 
 from fastmcp import FastMCP
 from starlette.middleware.cors import CORSMiddleware
+
 from mcp_server.config import get_config
-from mcp_server.utils import setup_logging
 from mcp_server.tools import convert_timezone, to_unix_time
+from mcp_server.utils import setup_logging
 
 logger = logging.getLogger(__name__)
 
@@ -37,22 +38,23 @@ def main() -> None:
     setup_logging(config.log_level)
     logger.info("Starting MCP server on %s:%s%s", config.host, config.port, config.path)
     register_tools()
-    # Serve HTTP on localhost:8000 at path /mcp (recommended for web deployments)
-    # You can override host/port/path via CLI: fastmcp run src/mcp_server/server.py --transport http --port 9000
+    # Serve HTTP using configuration values (overridable via environment variables)
+    # You can override host/port/path via CLI as well:
+    #   fastmcp run src/mcp_server/server.py --transport http --port 9000
     mcp.run(
         transport="http",
-        host="127.0.0.1",
-        port=8000,
-        path="/mcp",
+        host=config.host,
+        port=config.port,
+        path=config.path,
         stateless_http=True,
     )
 
 
 if __name__ == "__main__":  # pragma: no cover
     # Wrap the MCP ASGI app with CORS middleware for browser support
-    app = mcp.http_app()
-    app = CORSMiddleware(
-        app,
+    base_app = mcp.http_app()
+    cors_app = CORSMiddleware(
+        base_app,
         # Dev: allow all origins (tighten in production)
         allow_origins=["*"],
         allow_methods=["*"],
@@ -61,4 +63,4 @@ if __name__ == "__main__":  # pragma: no cover
     )
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(cors_app, host="0.0.0.0", port=8000)
