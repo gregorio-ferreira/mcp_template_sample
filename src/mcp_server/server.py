@@ -1,5 +1,7 @@
 """MCP Server implementation using FastMCP."""
 
+from __future__ import annotations
+
 import structlog
 from fastmcp import FastMCP
 from starlette.middleware.cors import CORSMiddleware

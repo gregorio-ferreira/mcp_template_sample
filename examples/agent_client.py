@@ -5,6 +5,8 @@ This example demonstrates creating an AI-powered conversational agent
 that can use MCP tools through LangChain and LangGraph.
 """
 
+from __future__ import annotations
+
 import asyncio
 import os
 

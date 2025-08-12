@@ -1,5 +1,7 @@
 """Utility functions for the MCP server."""
 
+from __future__ import annotations
+
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 

@@ -6,6 +6,8 @@ It supports both LLM-powered conversations (with OpenAI API key) and
 offline tool testing mode.
 """
 
+from __future__ import annotations
+
 import asyncio
 import os
 import sys

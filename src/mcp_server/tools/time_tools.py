@@ -1,5 +1,7 @@
 """Time and timezone related tools."""
 
+from __future__ import annotations
+
 from zoneinfo import ZoneInfo
 
 from mcp_server.models import TimeUnit, TimezoneConvertInput, UnixTimeInput

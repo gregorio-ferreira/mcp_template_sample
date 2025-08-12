@@ -1,5 +1,7 @@
 """File operation tools for the MCP server."""
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Annotated
 
