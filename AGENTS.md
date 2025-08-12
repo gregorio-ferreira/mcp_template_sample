@@ -1,6 +1,7 @@
-# MCP Server Template - Agent Guide
-
-This repository is a Python template for building Model Context Protocol (MCP) servers using FastMCP. This guide helps AI agents understand how to work effectively within this codebase.
+# MCP Server Template - Agent Gui└── test_examples/      # Integration testing scripts & examples
+    ├── test_mcp_server.sh      # Raw curl/bash testing
+    ├── test_mcp_client.py      # Python client testing  
+    └── mcp_chat_agent.py       # Interactive AI agent repository is a Python template for building Model Context Protocol (MCP) servers using FastMCP. This guide helps AI agents understand how to work effectively within this codebase.
 
 ## Project Overview
 
@@ -141,8 +142,7 @@ make check-server      # Server health check
 
 ### Test Structure
 - **Unit tests:** `tests/test_tools/` - Test individual tools
-- **Integration tests:** `tests/test_examples/` - End-to-end testing
-- **Examples:** `examples/` - Working client examples
+- **Integration tests:** `tests/test_examples/` - End-to-end testing and examples
 
 ### Before Committing
 ```bash
@@ -156,9 +156,9 @@ make clean            # Clean artifacts
 ## AI Agent Integration
 
 ### Available Agents
-1. **Simple Client** (`examples/simple_client.py`) - Basic tool usage
-2. **AI Agent** (`examples/agent_client.py`) - LangChain integration  
-3. **Chat Agent** (`tests/test_examples/mcp_chat_agent.py`) - Interactive conversations
+1. **Client Testing** (`tests/test_examples/test_mcp_client.py`) - Comprehensive tool testing
+2. **Chat Agent** (`tests/test_examples/mcp_chat_agent.py`) - Interactive AI conversations
+3. **Server Testing** (`tests/test_examples/test_mcp_server.sh`) - Raw curl/bash validation
 
 ### Agent Dependencies
 ```bash

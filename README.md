@@ -83,10 +83,8 @@ uv pip install -e ".[agent]"
 # Set up your OpenAI API key in .env file
 echo "OPENAI_API_KEY=your-key-here" >> .env
 
-# Run example agent
-python examples/agent_client.py
-
-# Run interactive chat agent
+```bash
+# For a conversational AI agent (requires OpenAI API key)
 python tests/test_examples/mcp_chat_agent.py
 ```
 
@@ -154,13 +152,10 @@ ruff check src/ tests/
 │   ├── models.py          # Pydantic models
 │   └── utils.py           # Utilities
 ├── tests/                 # Test suite (per-tool modules under test_tools/)
-│   └── test_examples/     # Integration test scripts
+│   └── test_examples/     # Integration test scripts & examples
 │       ├── test_mcp_server.sh      # Bash/curl testing
 │       ├── test_mcp_client.py      # Python client testing
 │       └── mcp_chat_agent.py       # Interactive AI agent
-├── examples/              # Usage examples
-│   ├── simple_client.py   # Basic client example
-│   └── agent_client.py    # AI agent example
 └── scripts/               # Utility scripts
 ```
 

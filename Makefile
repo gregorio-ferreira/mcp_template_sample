@@ -18,7 +18,6 @@ RUN   ?= $(UV) run
 # Paths
 SRC_DIR := src
 TEST_DIR := tests
-EXAMPLES_DIR := examples
 SCRIPTS_DIR := scripts
 
 ## Show help
@@ -101,12 +100,12 @@ run:
 ## Run example client
 example:
 	@echo "$(BLUE)Running example client...$(RESET)"
-	$(RUN) python $(EXAMPLES_DIR)/simple_client.py
+	$(RUN) python tests/test_examples/test_mcp_client.py --all
 
 ## Run agent example (requires OpenAI API key)
 agent:
 	@echo "$(BLUE)Running agent example...$(RESET)"
-	$(RUN) python $(EXAMPLES_DIR)/agent_client.py
+	$(RUN) python tests/test_examples/mcp_chat_agent.py
 
 ## Run interactive chat agent
 chat:

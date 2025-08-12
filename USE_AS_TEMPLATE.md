@@ -357,7 +357,7 @@ After customizing the template:
 1. **Update README.md** - Describe your specific tools
 2. **Update AGENTS.md** - Add agent-specific guidance
 3. **Document your APIs** - Include examples in docstrings
-4. **Create usage examples** - Update `examples/` directory
+4. **Create usage examples** - Update `tests/test_examples/` directory
 
 ### Example README Section
 ```markdown

@@ -11,8 +11,7 @@ This repository is a Python template for building Model Context Protocol (MCP) s
   - models.py — Pydantic models for input/output validation
   - `config.py`, `utils.py` — Configuration and utility helpers
 - tests — Pytest suite, with per-tool test modules under `test_tools/`
-  - `test_examples/` — Integration test scripts (bash, Python client, AI agent)
-- examples — Example clients for using the server (simple client, AI agent)
+  - `test_examples/` — Integration test scripts and usage examples (bash, Python client, AI agent)
 - scripts — Utility scripts (e.g. `run_server.py`)
 - pyproject.toml — Project metadata, dependencies, and tool configs
 - `.env` — Environment variables (copy from `.env.example`)
