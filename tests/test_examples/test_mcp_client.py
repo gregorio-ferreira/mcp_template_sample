@@ -18,6 +18,8 @@ from mcp_server.core import get_server_url
 pytestmark = pytest.mark.skip(reason="integration example requires running MCP server")
 
 # Server configuration
+TARGET_QUERY_ID = "LNQ_1140092_66fe2dcd3e9eb298096e8db3"
+TARGET_QUERY_NAME = "BAYER"
 SERVER_URL = get_server_url()
 
 
@@ -46,54 +48,76 @@ async def test_basic_client_functionality() -> dict[str, Any]:
             results["tools"] = tool_names
 
             # Verify expected tools are present
-            expected_tools = ["convert_timezone", "to_unix_time"]
+            expected_tools = [
+                "list_listening_queries",
+                "fetch_listening_posts",
+                "get_recent_posts"
+            ]
             missing_tools = [t for t in expected_tools if t not in tool_names]
             if missing_tools:
                 print(f"   ⚠️  Missing expected tools: {missing_tools}")
 
-            # Test 3: Timezone conversion
-            print("3. Testing timezone conversion...")
-            tz_result = await client.call_tool(
-                "convert_timezone",
-                {
-                    "dt": "2025-08-10T15:30:00",
-                    "from_tz": "Europe/Madrid",
-                    "to_tz": "America/New_York",
-                },
-            )
+            # Test 3: List Emplifi listening queries
+            print("3. Testing Emplifi listening queries...")
+            try:
+                queries_result = await client.call_tool(
+                    "list_listening_queries", {}
+                )
+                queries_data = (
+                    queries_result.data
+                    if hasattr(queries_result, "data")
+                    else queries_result
+                )
+                print(f"   ✅ Found queries: {len(queries_data)} results")
+                results["listening_queries"] = queries_data
 
-            # Handle different result formats
-            converted = str(tz_result.data if hasattr(tz_result, "data") else tz_result)
-            print(f"   ✅ Madrid 15:30 -> NYC: {converted}")
-            results["timezone_conversion"] = converted
+                # Check if our target query is present
+                if isinstance(queries_data, list):
+                    target_found = any(
+                        q.get("id") == TARGET_QUERY_ID for q in queries_data
+                    )
+                    if target_found:
+                        print(f"   ✅ Target query {TARGET_QUERY_NAME} found")
+                    else:
+                        print(f"   ⚠️  Target query {TARGET_QUERY_NAME} not found")
+                else:
+                    print(f"   ⚠️  Unexpected query format: {type(queries_data)}")
 
-            # Verify conversion looks correct
-            expected_indicators = ["America/New_York", "-04", "T11:30", "11:30"]
-            if any(indicator in converted for indicator in expected_indicators):
-                print("   ✅ Timezone conversion appears correct")
-            else:
-                print(f"   ⚠️  Unexpected conversion result: {converted}")
+            except Exception as e:
+                print(f"   ⚠️  Query listing failed (credentials?): {e}")
+                results["listening_queries"] = str(e)
 
-            # Test 4: Unix time conversion
-            print("4. Testing Unix time conversion...")
-            unix_result = await client.call_tool(
-                "to_unix_time",
-                {
-                    "dt": "2025-08-10T15:30:00+02:00",
-                    "unit": "milliseconds",
-                },
-            )
+            # Test 4: Get recent posts for BAYER query
+            print("4. Testing Emplifi recent posts...")
+            try:
+                posts_result = await client.call_tool(
+                    "get_recent_posts",
+                    {
+                        "query_id": TARGET_QUERY_ID,
+                        "days_back": 7,
+                        "limit": 5,
+                    },
+                )
+                posts_data = (
+                    posts_result.data
+                    if hasattr(posts_result, "data")
+                    else posts_result
+                )
+                print(f"   ✅ Recent posts: {len(posts_data)} results")
+                results["recent_posts"] = posts_data
 
-            unix_data = unix_result.data if hasattr(unix_result, "data") else unix_result
-            unix_time = float(unix_data)
-            print(f"   ✅ Unix time (ms): {unix_time}")
-            results["unix_time"] = unix_time
+                # Show sample post if available
+                if posts_data and len(posts_data) > 0:
+                    sample_post = posts_data[0]
+                    platform = sample_post.get("platform", "unknown")
+                    message = sample_post.get("message", "")[:50]
+                    print(f"   ✅ Sample post: {platform} - {message}...")
+                else:
+                    print("   ℹ️  No recent posts found")
 
-            # Verify it's a reasonable timestamp (should be in 2025)
-            if unix_time > 1735689600000:  # 2025-01-01 in ms
-                print("   ✅ Unix timestamp appears reasonable for 2025")
-            else:
-                print(f"   ⚠️  Unix timestamp seems incorrect: {unix_time}")
+            except Exception as e:
+                print(f"   ⚠️  Recent posts failed (credentials?): {e}")
+                results["recent_posts"] = str(e)
 
             # Test 5: Resource listing (if any)
             print("5. Testing resource discovery...")
@@ -127,55 +151,81 @@ async def test_basic_client_functionality() -> dict[str, Any]:
 
 
 async def test_advanced_scenarios() -> None:
-    """Test some advanced usage scenarios."""
-    print("\n🔬 Advanced Test Scenarios")
+    """Test advanced Emplifi usage scenarios."""
+    print("\n🔬 Advanced Emplifi Test Scenarios")
     print("=" * 40)
 
     async with Client(SERVER_URL) as client:
-        # Test timezone conversion with different formats
+        # Test different date ranges for fetch_listening_posts
         test_cases = [
             {
-                "name": "ISO format with timezone",
-                "dt": "2025-12-25T00:00:00+01:00",
-                "from_tz": "Europe/Paris",
-                "to_tz": "UTC",
+                "name": "Last 3 days",
+                "date_start": "2025-08-09",
+                "date_end": "2025-08-12",
+                "limit": 3,
             },
             {
-                "name": "Simple date string",
-                "dt": "2025-06-15 14:30",
-                "from_tz": "Asia/Tokyo",
-                "to_tz": "America/Los_Angeles",
+                "name": "Single day",
+                "date_start": "2025-08-11",
+                "date_end": "2025-08-11",
+                "limit": 5,
             },
             {
-                "name": "Edge case - DST transition",
-                "dt": "2025-03-30 02:30",  # DST transition in Europe
-                "from_tz": "Europe/Berlin",
-                "to_tz": "UTC",
+                "name": "Week range with specific fields",
+                "date_start": "2025-08-05",
+                "date_end": "2025-08-12",
+                "limit": 10,
+                "fields": ["id", "message", "platform", "created_time"],
             },
         ]
 
         for i, case in enumerate(test_cases, 1):
-            print(f"{i}. {case['name']}...")
+            print(f"{i}. Testing fetch posts: {case['name']}...")
             try:
-                # Remove the 'name' field from the parameters
-                params = {k: v for k, v in case.items() if k != "name"}
-                result = await client.call_tool("convert_timezone", params)
-                converted = str(result.data if hasattr(result, "data") else result)
-                print(f"   ✅ {case['dt']} ({case['from_tz']}) -> {converted}")
+                params = {
+                    "query_ids": [TARGET_QUERY_ID],
+                    "date_start": case["date_start"],
+                    "date_end": case["date_end"],
+                    "limit": case["limit"],
+                    "sort_order": "desc",
+                }
+                if "fields" in case:
+                    params["fields"] = case["fields"]
+
+                result = await client.call_tool("fetch_listening_posts", params)
+                posts_data = (
+                    result.data if hasattr(result, "data") else result
+                )
+                print(f"   ✅ Found {len(posts_data)} posts for {case['name']}")
+                
+                if posts_data and len(posts_data) > 0:
+                    sample = posts_data[0]
+                    platform = sample.get("platform", "unknown")
+                    msg_preview = sample.get("message", "")[:30]
+                    print(f"   ℹ️  Sample: {platform} - {msg_preview}...")
+
             except Exception as e:
-                print(f"   ❌ Failed: {e}")
+                print(f"   ⚠️  Failed (credentials?): {e}")
 
-        # Test Unix time with different units
-        print(f"{len(test_cases) + 1}. Unix time conversion (seconds vs milliseconds)...")
-        base_dt = "2025-01-01T00:00:00Z"
-
-        for unit in ["seconds", "milliseconds"]:
+        # Test get_recent_posts with different time ranges
+        print(f"{len(test_cases) + 1}. Testing recent posts with different ranges...")
+        
+        for days in [1, 3, 7, 14]:
             try:
-                result = await client.call_tool("to_unix_time", {"dt": base_dt, "unit": unit})
-                timestamp = result.data if hasattr(result, "data") else result
-                print(f"   ✅ {base_dt} -> {timestamp} {unit}")
+                result = await client.call_tool(
+                    "get_recent_posts",
+                    {
+                        "query_id": TARGET_QUERY_ID,
+                        "days_back": days,
+                        "limit": 5,
+                    },
+                )
+                posts_data = (
+                    result.data if hasattr(result, "data") else result
+                )
+                print(f"   ✅ Last {days} days: {len(posts_data)} posts")
             except Exception as e:
-                print(f"   ❌ Failed for {unit}: {e}")
+                print(f"   ⚠️  Failed for {days} days: {e}")
 
 
 def print_usage() -> None:

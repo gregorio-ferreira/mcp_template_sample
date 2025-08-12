@@ -8,17 +8,13 @@ from starlette.middleware.cors import CORSMiddleware
 
 from mcp_server.core import configure_logging, get_config
 from mcp_server.tools import (
-    convert_timezone,
-    fetch_listening_metrics,
     fetch_listening_posts,
     format_json,
-    get_daily_mention_metrics,
     get_recent_posts,
     list_directory,
     list_listening_queries,
     parse_json,
     read_file,
-    to_unix_time,
 )
 
 logger = structlog.get_logger(__name__)
@@ -37,10 +33,6 @@ def register_tools() -> None:
     """
     registered_before = {t.name for t in getattr(mcp, "tools", [])}
 
-    # Core time tools
-    mcp.tool()(convert_timezone)
-    mcp.tool()(to_unix_time)
-
     # File tools
     mcp.tool()(read_file)
     mcp.tool()(list_directory)
@@ -52,9 +44,7 @@ def register_tools() -> None:
     # Emplifi Listening API tools
     mcp.tool()(list_listening_queries)
     mcp.tool()(fetch_listening_posts)
-    mcp.tool()(fetch_listening_metrics)
     mcp.tool()(get_recent_posts)
-    mcp.tool()(get_daily_mention_metrics)
 
     registered_after = {t.name for t in getattr(mcp, "tools", [])}
     added = registered_after - registered_before

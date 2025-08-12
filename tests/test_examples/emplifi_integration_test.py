@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Integration test example for Emplifi API with Syngenta Flowers query.
+Integration test example for Emplifi API with BAYER query.
 
 This script demonstrates how to use the Emplifi tools to retrieve
-all data for the "Syngenta Flowers" listening query for the year 2025.
+all data for the "BAYER" listening query for recent periods.
 """
 
 import asyncio
@@ -14,24 +14,21 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from mcp_server.tools.emplifi_tools import (  # noqa: E402
-    MetricConfig,
-    fetch_listening_metrics,
     fetch_listening_posts,
-    get_daily_mention_metrics,
     get_recent_posts,
     list_listening_queries,
 )
 
 # Test constants
-TEST_QUERY_ID = "LNQ_1140092_641afbbd98a766f5eb4a4915"
-TEST_QUERY_NAME = "Syngenta Flowers"
-YEAR_2025_START = "2025-01-01"
-YEAR_2025_END = "2025-12-31"
+TEST_QUERY_ID = "LNQ_1140092_66fe2dcd3e9eb298096e8db3"
+TEST_QUERY_NAME = "BAYER"
+TEST_DATE_START = "2025-08-05"
+TEST_DATE_END = "2025-08-12"
 
 
 async def verify_query_exists() -> bool:
-    """Verify that the Syngenta Flowers query exists in the account."""
-    print("🔍 Checking if Syngenta Flowers query exists...")
+    """Verify that the BAYER query exists in the account."""
+    print("🔍 Checking if BAYER query exists...")
 
     try:
         queries = await list_listening_queries()
@@ -65,20 +62,19 @@ async def verify_query_exists() -> bool:
         return False
 
 
-async def test_fetch_posts_year_2025() -> None:
-    """Test fetching posts for Syngenta Flowers for the year 2025."""
-    print("\n📝 Testing post fetching for 2025...")
+async def test_fetch_posts_recent() -> None:
+    """Test fetching posts for BAYER for recent period."""
+    print("\n📝 Testing post fetching for recent period...")
 
     try:
         posts = await fetch_listening_posts(
             query_ids=[TEST_QUERY_ID],
-            date_start=YEAR_2025_START,
-            date_end=YEAR_2025_END,
+            date_start=TEST_DATE_START,
+            date_end=TEST_DATE_END,
             limit=50,  # Get up to 50 posts per page
-            max_pages=3  # Limit to 3 pages for testing
         )
 
-        print(f"📄 Retrieved {len(posts)} posts for 2025")
+        print(f"📄 Retrieved {len(posts)} posts for {TEST_DATE_START} to {TEST_DATE_END}")
 
         if posts:
             print("📊 Post breakdown by platform:")
@@ -91,7 +87,7 @@ async def test_fetch_posts_year_2025() -> None:
                 platforms[platform] = platforms.get(platform, 0) + 1
 
                 # Count by sentiment if available
-                if hasattr(post, 'sentiment') and post.sentiment:
+                if post.sentiment:
                     sentiment = post.sentiment
                     sentiments[sentiment] = sentiments.get(sentiment, 0) + 1
 
@@ -109,117 +105,85 @@ async def test_fetch_posts_year_2025() -> None:
                 print(f"\n   Post {i+1}:")
                 print(f"     Platform: {post.platform}")
                 print(f"     Created: {post.created_time}")
-                print(f"     Author: {post.author.get('name', 'Unknown')}")
+                author_name = "Unknown"
+                if isinstance(post.author, dict):
+                    author_name = post.author.get("name", "Unknown")
+                print(f"     Author: {author_name}")
                 print(f"     Message: {post.message[:100]}...")
-                if hasattr(post, 'sentiment') and post.sentiment:
+                if post.sentiment:
                     print(f"     Sentiment: {post.sentiment}")
         else:
-            print("📭 No posts found for 2025")
+            print("📭 No posts found for the specified period")
 
     except Exception as e:
         print(f"❌ Error fetching posts: {e}")
 
 
-async def test_fetch_metrics_year_2025() -> None:
-    """Test fetching metrics for Syngenta Flowers for the year 2025."""
-    print("\n📈 Testing metrics fetching for 2025...")
+async def test_get_recent_posts() -> None:
+    """Test the get_recent_posts convenience function."""
+    print("\n�️  Testing get_recent_posts convenience function...")
 
     try:
-        # Test different metric types
-        metric_types = ["mentions", "reach", "engagement"]
-
-        for metric_type in metric_types:
-            print(f"\n📊 Fetching {metric_type} metrics...")
-
-            try:
-                metrics = await fetch_listening_metrics(
-                    query_ids=[TEST_QUERY_ID],
-                    date_start=YEAR_2025_START,
-                    date_end=YEAR_2025_END,
-                    metrics=[MetricConfig(type=metric_type)]
-                )
-
-                print(f"📈 Retrieved {len(metrics.data)} data points")
-
-                if metrics.meta:
-                    print(f"📋 Meta information: {metrics.meta}")
-
-                if metrics.data:
-                    # Calculate some basic statistics
-                    values = []
-                    for data_point in metrics.data:
-                        if metric_type in data_point:
-                            values.append(data_point[metric_type])
-
-                    if values:
-                        total = sum(values)
-                        avg = total / len(values)
-                        max_val = max(values)
-                        min_val = min(values)
-
-                        print(f"   Total {metric_type}: {total}")
-                        print(f"   Average daily {metric_type}: {avg:.2f}")
-                        print(f"   Max daily {metric_type}: {max_val}")
-                        print(f"   Min daily {metric_type}: {min_val}")
-                    else:
-                        print(f"   No {metric_type} data available")
-                else:
-                    print(f"   No {metric_type} data points found")
-
-            except Exception as metric_error:
-                print(f"⚠️  Error fetching {metric_type}: {metric_error}")
-
-    except Exception as e:
-        print(f"❌ Error in metrics testing: {e}")
-
-
-async def test_convenience_functions() -> None:
-    """Test the convenience functions."""
-    print("\n🛠️  Testing convenience functions...")
-
-    try:
-        # Test recent posts (last 30 days)
-        print("\n📅 Getting recent posts (last 30 days)...")
+        # Test recent posts (last 7 days)
+        print("\n� Getting recent posts (last 7 days)...")
         recent_posts = await get_recent_posts(
             TEST_QUERY_ID,
-            days_back=30,
-            max_pages=2
+            days_back=7,
+            limit=20
         )
-        print(f"📄 Found {len(recent_posts)} recent posts")
+        print(f"� Found {len(recent_posts)} recent posts")
 
-        # Test daily mention metrics (last 90 days)
-        print("\n📊 Getting daily mention metrics (last 90 days)...")
-        daily_metrics = await get_daily_mention_metrics(
-            TEST_QUERY_ID,
-            days_back=90
-        )
-        print(f"📈 Retrieved {len(daily_metrics.data)} daily data points")
+        if recent_posts:
+            # Show platform distribution
+            platforms: dict[str, int] = {}
+            for post in recent_posts:
+                platform = post.platform
+                platforms[platform] = platforms.get(platform, 0) + 1
 
-        if daily_metrics.data:
-            # Find the most active day
-            max_mentions = 0
-            max_date = None
-            total_mentions = 0
+            print("📊 Recent posts by platform:")
+            for platform, count in platforms.items():
+                print(f"   {platform}: {count} posts")
 
-            for data_point in daily_metrics.data:
-                if "mentions" in data_point:
-                    mentions = data_point["mentions"]
-                    total_mentions += mentions
-                    if mentions > max_mentions:
-                        max_mentions = mentions
-                        max_date = data_point.get("date", "Unknown")
-
-            print(f"   Total mentions in last 90 days: {total_mentions}")
-            if max_date:
-                print(f"   Most active day: {max_date} with {max_mentions} mentions")
+            # Show most recent post
+            if recent_posts:
+                latest_post = recent_posts[0]
+                print("\n📝 Most recent post:")
+                print(f"   Platform: {latest_post.platform}")
+                print(f"   Created: {latest_post.created_time}")
+                print(f"   Message: {latest_post.message[:80]}...")
 
     except Exception as e:
-        print(f"❌ Error testing convenience functions: {e}")
+        print(f"❌ Error testing get_recent_posts: {e}")
+
+
+async def test_different_date_ranges() -> None:
+    """Test fetching posts with different date ranges."""
+    print("\n📅 Testing different date ranges...")
+
+    date_ranges = [
+        ("2025-08-11", "2025-08-11", "Single day"),
+        ("2025-08-10", "2025-08-12", "3-day range"),
+        ("2025-08-05", "2025-08-12", "Week range"),
+    ]
+
+    for start_date, end_date, description in date_ranges:
+        print(f"\n📊 Testing {description} ({start_date} to {end_date})...")
+        try:
+            posts = await fetch_listening_posts(
+                query_ids=[TEST_QUERY_ID],
+                date_start=start_date,
+                date_end=end_date,
+                limit=10,
+            )
+            print(f"   📄 Found {len(posts)} posts for {description}")
+
+        except Exception as e:
+            print(f"   ❌ Error for {description}: {e}")
 
 
 async def main() -> None:
     """Main test function."""
-    print("🚀 Starting Emplifi Integration Test for Syngenta Flowers")
+    print("🚀 Starting Emplifi Integration Test for BAYER")
     print("=" * 60)
 
     # First verify the query exists
@@ -229,15 +193,15 @@ async def main() -> None:
         return
 
     # Run all tests
-    await test_fetch_posts_year_2025()
-    await test_fetch_metrics_year_2025()
-    await test_convenience_functions()
+    await test_fetch_posts_recent()
+    await test_get_recent_posts()
+    await test_different_date_ranges()
 
     print("\n" + "=" * 60)
     print("🎉 Integration test completed!")
     print("\nNote: This test demonstrates the Emplifi API integration.")
     print("The amount of data returned depends on the actual activity")
-    print("for the Syngenta Flowers query in your Emplifi account.")
+    print("for the BAYER query in your Emplifi account.")
 
 
 if __name__ == "__main__":

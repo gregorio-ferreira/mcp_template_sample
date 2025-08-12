@@ -1,51 +1,26 @@
 """Emplifi Listening API tools for MCP server.
 
-This module provides tools for interacting with the Emplifi Listening API,
-including OAuth2 authentication, listing queries, fetching posts, and
-retrieving metrics.
+This module provides simplified tools for interacting with the Emplifi API
+using Basic Authentication. Supports listing queries and fetching posts.
 """
 
-from __future__ import annotations
-
 import base64
-import contextlib
-import json
 import os
-import threading
-import time
-import webbrowser
 from datetime import UTC, datetime, timedelta
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Annotated, Any
-from urllib.parse import parse_qs, urlencode, urlparse
 
 import httpx
-import structlog
 from pydantic import BaseModel
 
-from mcp_server.core.config import load_environment
-
-logger = structlog.get_logger(__name__)
-
 # Constants
-API_BASE = "https://api.emplifi.io"
-OAUTH_BASE = f"{API_BASE}/oauth2/0"
-TOKEN_FILE = "emplifi_token.json"
+API_BASE = "https://api.emplifi.io/3"
+DEFAULT_TIMEOUT = 30
 
 
 # Models
-class EmplifiConfig(BaseModel):
-    """Configuration for Emplifi API authentication."""
-    client_id: str | None = None
-    client_secret: str | None = None
-    redirect_uri: str | None = None
-    scopes: str = "api.read offline_access"
-    basic_token: str | None = None
-    basic_secret: str | None = None
-
-
 class ListeningQuery(BaseModel):
     """A listening query from the Emplifi API."""
+
     id: str
     name: str
     description: str | None = None
@@ -54,6 +29,7 @@ class ListeningQuery(BaseModel):
 
 class ListeningPost(BaseModel):
     """A listening post (mention) from the Emplifi API."""
+
     id: str
     created_time: str
     platform: str
@@ -64,546 +40,343 @@ class ListeningPost(BaseModel):
     url: str | None = None
 
 
-class ListeningMetrics(BaseModel):
-    """Metrics response from the Emplifi API."""
-    # API returns different types based on dimensions
-    data: list[dict[str, Any] | int | float | str]
-    meta: dict[str, Any] | None = None
+# Authentication helper
+def _get_auth_headers() -> dict[str, str]:
+    """Build Basic authentication headers from environment variables.
 
+    Expects EMPLIFI_TOKEN and EMPLIFI_SECRET environment variables.
+    """
+    token = os.environ.get("EMPLIFI_TOKEN")
+    secret = os.environ.get("EMPLIFI_SECRET")
 
-class PostsFilter(BaseModel):
-    """Filter for posts requests."""
-    field: str
-    value: Any
-
-
-class PostsSort(BaseModel):
-    """Sort configuration for posts."""
-    field: str
-    order: str = "desc"
-
-
-class MetricConfig(BaseModel):
-    """Metric configuration."""
-    metric: str
-
-
-class DimensionConfig(BaseModel):
-    """Dimension configuration."""
-    type: str
-    group: dict[str, Any] | None = None
-
-
-# Authentication Classes
-class TokenStorage:
-    """Handle token storage and retrieval."""
-
-    @staticmethod
-    def save_token(token: dict[str, Any]) -> None:
-        """Save token to file."""
-        try:
-            with open(TOKEN_FILE, "w", encoding="utf-8") as f:
-                json.dump(token, f, indent=2)
-        except Exception as e:
-            logger.error("Failed to save token", error=str(e))
-
-    @staticmethod
-    def load_token() -> dict[str, Any]:
-        """Load token from file."""
-        try:
-            if os.path.exists(TOKEN_FILE):
-                with open(TOKEN_FILE, encoding="utf-8") as f:
-                    return json.load(f)
-        except Exception as e:
-            logger.error("Failed to load token", error=str(e))
-        return {}
-
-
-class EmplifiAuthClient:
-    """Base authentication client."""
-
-    def __init__(self, config: EmplifiConfig):
-        self.config = config
-
-    async def get_auth_headers(self) -> dict[str, str]:
-        """Get authentication headers."""
-        raise NotImplementedError
-
-
-class EmplifiOAuthClient(EmplifiAuthClient):
-    """OAuth2 authentication client for Emplifi API."""
-
-    def __init__(self, config: EmplifiConfig):
-        super().__init__(config)
-        self.token = TokenStorage.load_token()
-        self.auth_endpoint = f"{OAUTH_BASE}/auth"
-        self.token_endpoint = f"{OAUTH_BASE}/token"
-
-    def _have_valid_access_token(self) -> bool:
-        """Check if we have a valid access token."""
-        if not self.token or "access_token" not in self.token:
-            return False
-        obtained_at = self.token.get("obtained_at", 0)
-        expires_in = self.token.get("expires_in", 0)
-        exp = obtained_at + expires_in - 60
-        return time.time() < exp
-
-    def _basic_client_auth_header(self) -> str:
-        """Generate basic auth header for client credentials."""
-        credentials = f"{self.config.client_id}:{self.config.client_secret}"
-        encoded_bytes = credentials.encode("utf-8")
-        b64_credentials = base64.b64encode(encoded_bytes).decode("utf-8")
-        return f"Basic {b64_credentials}"
-
-    async def _refresh_token(self) -> None:
-        """Refresh the access token using refresh token."""
-        if not self.token.get("refresh_token"):
-            raise RuntimeError("No refresh token available")
-
-        data = {
-            "grant_type": "refresh_token",
-            "refresh_token": self.token["refresh_token"],
-        }
-        headers = {
-            "Authorization": self._basic_client_auth_header(),
-            "Content-Type": "application/x-www-form-urlencoded",
-        }
-
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                self.token_endpoint,
-                data=data,
-                headers=headers,
-                timeout=30
-            )
-            response.raise_for_status()
-
-            new_token = response.json()
-            refresh_token = new_token.get(
-                "refresh_token", self.token.get("refresh_token")
-            )
-            self.token.update({
-                "access_token": new_token["access_token"],
-                "token_type": new_token.get("token_type", "bearer"),
-                "expires_in": new_token.get("expires_in", 3600),
-                "refresh_token": refresh_token,
-                "scope": new_token.get("scope", self.token.get("scope")),
-                "obtained_at": int(time.time()),
-            })
-            TokenStorage.save_token(self.token)
-
-    def _interactive_login(self) -> str:
-        """Perform interactive OAuth login to get authorization code."""
-        state = os.urandom(12).hex()
-        params = {
-            "response_type": "code",
-            "client_id": self.config.client_id,
-            "redirect_uri": self.config.redirect_uri,
-            "scope": self.config.scopes,
-            "state": state,
-            "prompt": "consent",
-        }
-        auth_url = f"{self.auth_endpoint}?{urlencode(params)}"
-
-        print(f"\nOpen this URL to authorize:\n{auth_url}\n")
-
-        # Try to open browser
-        with contextlib.suppress(Exception):
-            webbrowser.open(auth_url, new=2)
-
-        # Start local server to capture the code
-        code_holder = {}
-        redirect_uri = self.config.redirect_uri
-
-        class CallbackHandler(BaseHTTPRequestHandler):
-            def do_GET(self):
-                parsed_url = urlparse(self.path)
-                redirect_path = urlparse(redirect_uri).path
-
-                if parsed_url.path != redirect_path:
-                    self.send_response(404)
-                    self.end_headers()
-                    return
-
-                query_params = parse_qs(parsed_url.query)
-
-                if "error" in query_params:
-                    self.send_response(400)
-                    self.end_headers()
-                    self.wfile.write(b"Authorization error.")
-                    return
-
-                if query_params.get("state", [""])[0] != state:
-                    self.send_response(400)
-                    self.end_headers()
-                    self.wfile.write(b"State mismatch.")
-                    return
-
-                code_holder["code"] = query_params.get("code", [""])[0]
-                self.send_response(200)
-                self.end_headers()
-                message = b"You can close this tab and return to the app."
-                self.wfile.write(message)
-
-            def log_message(self, *args, **kwargs):
-                pass  # Silence logs
-
-        # Parse redirect URI for server setup
-        redirect_parsed = urlparse(self.config.redirect_uri)
-        host = redirect_parsed.hostname or "127.0.0.1"
-        port = redirect_parsed.port or 8765
-
-        httpd = HTTPServer((host, port), CallbackHandler)
-
-        thread = threading.Thread(target=httpd.handle_request, daemon=True)
-        thread.start()
-        thread.join(timeout=300)
-
-        if "code" not in code_holder:
-            httpd.server_close()
-            error_msg = (
-                "Did not receive authorization code. "
-                "Check redirect URI configuration."
-            )
-            raise RuntimeError(error_msg)
-
-        code = code_holder["code"]
-        httpd.server_close()
-        return code
-
-    async def _exchange_code_for_tokens(self, code: str) -> None:
-        """Exchange authorization code for tokens."""
-        data = {
-            "grant_type": "authorization_code",
-            "code": code,
-            "redirect_uri": self.config.redirect_uri,
-        }
-        headers = {
-            "Authorization": self._basic_client_auth_header(),
-            "Content-Type": "application/x-www-form-urlencoded",
-        }
-
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                self.token_endpoint,
-                data=data,
-                headers=headers,
-                timeout=30
-            )
-            response.raise_for_status()
-
-            token_data = response.json()
-            self.token = {
-                "access_token": token_data["access_token"],
-                "token_type": token_data.get("token_type", "bearer"),
-                "expires_in": token_data.get("expires_in", 3600),
-                "refresh_token": token_data.get("refresh_token"),
-                "scope": token_data.get("scope", self.config.scopes),
-                "obtained_at": int(time.time()),
-            }
-            TokenStorage.save_token(self.token)
-
-    async def ensure_valid_token(self) -> None:
-        """Ensure we have a valid access token."""
-        if self._have_valid_access_token():
-            return
-
-        if self.token.get("refresh_token"):
-            try:
-                await self._refresh_token()
-                return
-            except Exception as e:
-                warning_msg = "Token refresh failed, starting new auth flow"
-                logger.warning(warning_msg, error=str(e))
-
-        # Perform full OAuth flow (this would need user interaction)
-        # For MCP server, we should require pre-authorized tokens
-        error_msg = (
-            "No valid access token available. "
-            "Please run interactive authentication first."
+    if not token or not secret:
+        raise ValueError(
+            "Missing Emplifi credentials. Set EMPLIFI_TOKEN and "
+            "EMPLIFI_SECRET environment variables."
         )
-        raise RuntimeError(error_msg)
 
-    async def get_auth_headers(self) -> dict[str, str]:
-        """Get authentication headers."""
-        await self.ensure_valid_token()
-        return {"Authorization": f"Bearer {self.token['access_token']}"}
+    # Encode token:secret as base64
+    credentials = f"{token}:{secret}"
+    encoded = base64.b64encode(credentials.encode("utf-8")).decode("ascii")
 
-
-class EmplifiBasicClient(EmplifiAuthClient):
-    """Basic authentication client for Emplifi API."""
-
-    def __init__(self, config: EmplifiConfig):
-        super().__init__(config)
-        if not (config.basic_token and config.basic_secret):
-            raise ValueError("Basic auth requires both token and secret")
-
-        credentials = f"{config.basic_token}:{config.basic_secret}"
-        encoded_bytes = credentials.encode("utf-8")
-        b64_credentials = base64.b64encode(encoded_bytes).decode("utf-8")
-        self._auth_header = {"Authorization": f"Basic {b64_credentials}"}
-
-    async def get_auth_headers(self) -> dict[str, str]:
-        """Get authentication headers."""
-        return self._auth_header
+    return {"Authorization": f"Basic {encoded}", "Content-Type": "application/json"}
 
 
-# Utility functions
-def _get_config() -> EmplifiConfig:
-    """Get Emplifi configuration from environment variables."""
-    # Ensure environment variables are loaded from .env file
-    load_environment()
+# Core API functions (based on your sample implementation)
+async def _list_listening_queries_raw(headers: dict[str, str]) -> list[dict[str, Any]]:
+    """GET /3/listening/queries and return raw list of query dicts."""
+    url = f"{API_BASE}/listening/queries"
 
-    return EmplifiConfig(
-        client_id=os.environ.get("EMPLIFI_CLIENT_ID"),
-        client_secret=os.environ.get("EMPLIFI_CLIENT_SECRET"),
-        redirect_uri=os.environ.get("EMPLIFI_REDIRECT_URI"),
-        scopes=os.environ.get("EMPLIFI_SCOPES", "api.read offline_access"),
-        basic_token=os.environ.get("EMPLIFI_TOKEN"),
-        basic_secret=os.environ.get("EMPLIFI_SECRET"),
-    )
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            url,
+            headers=headers,
+            timeout=DEFAULT_TIMEOUT,
+        )
+        response.raise_for_status()
+        body = response.json()
+
+    # Handle different response structures
+    data = body.get("data")
+    if isinstance(data, list):
+        return data
+
+    if isinstance(body, list):
+        return body
+
+    if "queries" in body and isinstance(body["queries"], list):
+        return body["queries"]
+
+    # Fallback: wrap body in a list
+    return [body]
 
 
-def _get_auth_client() -> EmplifiAuthClient:
-    """Get appropriate authentication client based on configuration."""
-    config = _get_config()
+async def _fetch_all_posts_raw(
+    headers: dict[str, str],
+    date_start: str,
+    date_end: str,
+    listening_queries: list[str],
+    fields: list[str] | None = None,
+    sort_field: str | None = None,
+    sort_order: str = "desc",
+    limit: int = 100,
+) -> list[dict[str, Any]]:
+    """POST /3/listening/posts and follow cursor pagination."""
+    url = f"{API_BASE}/listening/posts"
 
-    # Prefer OAuth if configured
-    if config.client_id and config.client_secret and config.redirect_uri:
-        return EmplifiOAuthClient(config)
+    payload: dict[str, Any] = {
+        "date_start": date_start,
+        "date_end": date_end,
+        "listening_queries": listening_queries,
+        "limit": min(limit, 100),  # API max is 100
+    }
 
-    # Fall back to Basic auth
-    if config.basic_token and config.basic_secret:
-        return EmplifiBasicClient(config)
+    if fields:
+        payload["fields"] = fields
+    if sort_field:
+        payload["sort"] = [{"field": sort_field, "order": sort_order}]
 
-    raise ValueError(
-        "No authentication configured. Set either OAuth credentials "
-        "(EMPLIFI_CLIENT_ID, EMPLIFI_CLIENT_SECRET, EMPLIFI_REDIRECT_URI) "
-        "or Basic auth credentials (EMPLIFI_TOKEN, EMPLIFI_SECRET)"
-    )
+    all_posts: list[dict[str, Any]] = []
+
+    async with httpx.AsyncClient() as client:
+        # First page
+        response = await client.post(url, headers=headers, json=payload, timeout=DEFAULT_TIMEOUT)
+        response.raise_for_status()
+        body = response.json()
+
+        data_block = body.get("data", {})
+        posts = data_block.get("posts", [])
+        all_posts.extend(posts)
+        next_cursor = data_block.get("next")
+
+        # Subsequent pages
+        while next_cursor:
+            response = await client.post(
+                url, headers=headers, json={"next": next_cursor}, timeout=DEFAULT_TIMEOUT
+            )
+            response.raise_for_status()
+            body = response.json()
+
+            data_block = body.get("data", {})
+            posts = data_block.get("posts", [])
+            all_posts.extend(posts)
+            next_cursor = data_block.get("next")
+
+    return all_posts
 
 
 # MCP Tool Functions
 async def list_listening_queries() -> list[ListeningQuery]:
     """List all available listening queries from Emplifi.
 
-    Returns a list of listening queries that can be used to fetch posts
-    and metrics.
+    This tool connects to the Emplifi Listening API and retrieves all listening
+    queries that are accessible to your account. Listening queries are the
+    search configurations that monitor social media platforms for specific
+    keywords, hashtags, mentions, or other criteria.
+
+    Returns:
+        A list of ListeningQuery objects containing:
+        - id: Unique identifier for the query (used in fetch_listening_posts)
+        - name: Human-readable name of the query
+        - description: Optional description of what the query monitors
+        - status: Current status of the query (active, paused, etc.)
+
+    Authentication:
+        Requires EMPLIFI_TOKEN and EMPLIFI_SECRET environment variables.
+        Uses Basic Authentication with the Emplifi API.
+
+    Example Usage:
+        queries = await list_listening_queries()
+        for query in queries:
+            print(f"Query: {query.name} (ID: {query.id})")
+
+    Common Use Cases:
+        - Discover available monitoring queries for your account
+        - Get query IDs needed for fetching posts
+        - Check query status and descriptions
+        - List all social listening configurations
     """
-    client = _get_auth_client()
-    headers = await client.get_auth_headers()
+    headers = _get_auth_headers()
+    queries_raw = await _list_listening_queries_raw(headers)
 
-    url = f"{API_BASE}/3/listening/queries"
-
-    async with httpx.AsyncClient() as http_client:
-        response = await http_client.get(url, headers=headers, timeout=60)
-        response.raise_for_status()
-
-        data = response.json()
-        queries = data.get("queries", [])
-
-        return [
-            ListeningQuery(
-                id=query["id"],
-                name=query.get("name", ""),
-                description=query.get("description"),
-                status=query.get("status")
-            )
-            for query in queries
-        ]
+    return [
+        ListeningQuery(
+            id=query["id"],
+            name=query.get("name", ""),
+            description=query.get("description"),
+            status=query.get("status"),
+        )
+        for query in queries_raw
+    ]
 
 
 async def fetch_listening_posts(
     query_ids: Annotated[list[str], "List of listening query IDs"],
-    date_start: Annotated[str, "Start date in YYYY-MM-DD format"],
-    date_end: Annotated[str, "End date in YYYY-MM-DD format"],
+    date_start: Annotated[str, "Start date (YYYY-MM-DD or ISO format)"],
+    date_end: Annotated[str, "End date (YYYY-MM-DD or ISO format)"],
     fields: Annotated[list[str] | None, "Fields to include"] = None,
-    limit: Annotated[int, "Number of posts per page (max 100)"] = 100,
-    filters: Annotated[list[PostsFilter] | None, "Filters"] = None,
-    sort: Annotated[list[PostsSort] | None, "Sort config"] = None,
-    max_pages: Annotated[int, "Maximum number of pages"] = 1,
+    sort_field: Annotated[str | None, "Field to sort by"] = "interactions",
+    sort_order: Annotated[str, "Sort order (asc/desc)"] = "desc",
+    limit: Annotated[int, "Posts per page (max 100)"] = 100,
 ) -> list[ListeningPost]:
-    """Fetch listening posts (mentions) for specified queries and date range.
+    """Fetch listening posts for specified queries and date range.
 
-    This tool retrieves social media posts and mentions that match your
-    listening queries. It supports pagination, filtering, and sorting.
+    This tool retrieves social media posts, mentions, and conversations that
+    match your listening queries within a specified time period. It automatically
+    handles pagination to fetch all available posts across multiple API calls.
+
+    Args:
+        query_ids: List of listening query IDs (get from list_listening_queries)
+        date_start: Start date in YYYY-MM-DD format (e.g., "2025-08-01") or 
+                   ISO format (e.g., "2025-08-01T00:00:00Z")
+        date_end: End date in same format as date_start
+        fields: Optional list of fields to include in response. If None, includes:
+               ["id", "created_time", "platform", "author", "message", 
+                "sentiment", "interactions", "url"]
+        sort_field: Field to sort results by. Valid options: "interactions",
+                   "comments", "potential_impressions", "shares"
+                   (default: "interactions")
+        sort_order: Sort direction - "asc" (oldest first) or "desc" (newest first)
+        limit: Number of posts per API page (max 100, API limitation)
+
+    Returns:
+        List of ListeningPost objects containing:
+        - id: Unique post identifier
+        - created_time: When the post was created (ISO format)
+        - platform: Social media platform (twitter, facebook, instagram, etc.)
+        - author: Dictionary with author information (name, handle, etc.)
+        - message: Text content of the post
+        - sentiment: Sentiment analysis result (positive, negative, neutral)
+        - interactions: Number of likes, shares, comments, etc.
+        - url: Direct link to the original post
+
+    Authentication:
+        Requires EMPLIFI_TOKEN and EMPLIFI_SECRET environment variables.
+
+    Date Range:
+        - Maximum range depends on your Emplifi plan (typically 30-90 days)
+        - Use shorter ranges for better performance with high-volume queries
+        - Dates are inclusive (includes posts from both start and end dates)
+
+    Pagination:
+        - Automatically fetches all pages of results
+        - Each page contains up to 'limit' posts (max 100)
+        - Large result sets may take longer to process
+
+    Example Usage:
+        # Get last week's posts for a specific query
+        posts = await fetch_listening_posts(
+            query_ids=["LNQ_1140092_66fe2dcd3e9eb298096e8db3"],
+            date_start="2025-08-01",
+            date_end="2025-08-07",
+            sort_field="interactions",
+            sort_order="desc",
+            limit=50
+        )
+        
+        # Get posts from multiple queries
+        posts = await fetch_listening_posts(
+            query_ids=["query1", "query2", "query3"],
+            date_start="2025-08-01",
+            date_end="2025-08-02"
+        )
+
+    Common Use Cases:
+        - Monitor brand mentions across social platforms
+        - Analyze sentiment trends over time
+        - Extract high-engagement posts for content ideas
+        - Track campaign performance and reach
+        - Generate reports on social media coverage
+        - Find influencer content and user-generated content
     """
-    client = _get_auth_client()
-    headers = await client.get_auth_headers()
+    headers = _get_auth_headers()
 
-    url = f"{API_BASE}/3/listening/posts"
-
-    # Default fields if not specified (based on API documentation)
+    # Default fields if not specified
     if fields is None:
         fields = [
-            "id", "created_time", "platform", "author",
-            "message", "sentiment", "interactions", "url"
+            "id",
+            "created_time",
+            "platform",
+            "author",
+            "message",
+            "sentiment",
+            "interactions",
+            "url",
         ]
 
-    # Default sort if not specified
-    # Posts API allows: comments, potential_impressions, interactions, shares
-    if sort is None:
-        sort = [PostsSort(field="interactions", order="desc")]
-
-    # Convert date strings to simple YYYY-MM-DD format (posts API requirement)
+    # Convert dates to simple YYYY-MM-DD format for the API
     def format_date(date_str: str) -> str:
         if "T" in date_str:
             # ISO format, extract date part only
             return date_str.split("T")[0]
         return date_str  # Already in YYYY-MM-DD format
 
-    payload = {
-        "listening_queries": query_ids,
-        "date_start": format_date(date_start),
-        "date_end": format_date(date_end),
-        "limit": min(limit, 100),  # API max is 100
-        "fields": fields,
-    }
+    posts_raw = await _fetch_all_posts_raw(
+        headers=headers,
+        date_start=format_date(date_start),
+        date_end=format_date(date_end),
+        listening_queries=query_ids,
+        fields=fields,
+        sort_field=sort_field,
+        sort_order=sort_order,
+        limit=limit,
+    )
 
-    if filters:
-        payload["filter"] = [f.model_dump() for f in filters]
-
-    if sort:
-        payload["sort"] = [s.model_dump() for s in sort]
-
+    # Convert to Pydantic models
     posts = []
-    page = 0
-    next_cursor = None
-
-    logger.info(f"Fetching posts with payload: {payload}")
-
-    async with httpx.AsyncClient() as http_client:
-        while page < max_pages:
-            body = dict(payload)
-            if next_cursor:
-                body["after"] = next_cursor  # Use "after" for pagination
-
-            try:
-                response = await http_client.post(
-                    url,
-                    headers={**headers, "Content-Type": "application/json"},
-                    json=body,
-                    timeout=120
+    for post in posts_raw:
+        try:
+            posts.append(
+                ListeningPost(
+                    id=post["id"],
+                    created_time=post.get("created_time", ""),
+                    platform=post.get("platform", ""),
+                    author=post.get("author", {}),
+                    message=post.get("message", ""),
+                    sentiment=post.get("sentiment"),
+                    interactions=post.get("interactions"),
+                    url=post.get("url"),
                 )
-                response.raise_for_status()
+            )
+        except Exception as e:
+            # Skip malformed posts but log the issue
+            post_id = post.get("id", "unknown")
+            print(f"Warning: Skipping malformed post {post_id}: {e}")
+            continue
 
-                response_data = response.json()
-                logger.info(
-                    f"API response structure: {list(response_data.keys())}"
-                )
-
-                # Check if request was successful
-                if not response_data.get("success", False):
-                    logger.error(
-                        f"API returned unsuccessful response: {response_data}"
-                    )
-                    break
-
-                # Get data object from response
-                data = response_data.get("data", {})
-                page_posts = data.get("posts", [])
-
-                logger.info(f"Page {page + 1}: Found {len(page_posts)} posts")
-
-                for post in page_posts:
-                    try:
-                        posts.append(ListeningPost(
-                            id=post["id"],
-                            created_time=post.get("created_time", ""),
-                            platform=post.get("platform", ""),
-                            author=post.get("author", {}),
-                            message=post.get("message", ""),
-                            sentiment=post.get("sentiment"),
-                            interactions=post.get("interactions", 0)
-                        ))
-                    except Exception as e:
-                        post_id = post.get("id", "unknown")
-                        logger.error(f"Error parsing post {post_id}: {e}")
-                        continue
-
-                # Get next cursor for pagination
-                next_cursor = data.get("next")
-                page += 1
-
-                if not next_cursor or len(page_posts) == 0:
-                    break
-
-            except Exception as e:
-                logger.error(f"Error fetching posts page {page + 1}: {e}")
-                break
-
-    logger.info(f"Successfully fetched {len(posts)} posts")
     return posts
 
 
-async def fetch_listening_metrics(
-    query_ids: Annotated[list[str], "List of listening query IDs"],
-    date_start: Annotated[str, "Start date in YYYY-MM-DD format"],
-    date_end: Annotated[str, "End date in YYYY-MM-DD format"],
-    metrics: Annotated[list[MetricConfig], "Metrics to fetch"],
-    dimensions: Annotated[list[DimensionConfig] | None, "Dimensions"] = None,
-    filters: Annotated[list[PostsFilter] | None, "Filters"] = None,
-) -> ListeningMetrics:
-    """Fetch listening metrics for specified queries and date range.
-
-    This tool retrieves aggregated metrics about your listening queries,
-    such as mention counts, sentiment distribution, and engagement metrics.
-    """
-    client = _get_auth_client()
-    headers = await client.get_auth_headers()
-
-    url = f"{API_BASE}/3/listening/metrics"
-
-    # Convert date strings to ISO format if they're simple dates
-    def format_date(date_str: str) -> str:
-        if "T" not in date_str:
-            # Simple date format, convert to ISO
-            if date_str == date_start:
-                return f"{date_str}T00:00:00"
-            else:
-                return f"{date_str}T23:59:59"
-        return date_str
-
-    payload = {
-        "listening_queries": query_ids,
-        "date_start": format_date(date_start),
-        "date_end": format_date(date_end),
-        "metrics": [m.model_dump() for m in metrics],
-    }
-
-    if dimensions:
-        payload["dimensions"] = [d.model_dump() for d in dimensions]
-
-    if filters:
-        payload["filter"] = [f.model_dump() for f in filters]
-
-    async with httpx.AsyncClient() as http_client:
-        response = await http_client.post(
-            url,
-            headers={**headers, "Content-Type": "application/json"},
-            json=payload,
-            timeout=120
-        )
-        response.raise_for_status()
-
-        data = response.json()
-        return ListeningMetrics(
-            data=data.get("data", []),
-            meta=data.get("meta")
-        )
-
-
-# Convenience tools for common use cases
 async def get_recent_posts(
     query_id: Annotated[str, "Listening query ID"],
-    days_back: Annotated[int, "Number of days back to fetch posts"] = 7,
-    limit_per_page: Annotated[int, "Posts per page"] = 50,
-    max_pages: Annotated[int, "Maximum pages to fetch"] = 2,
+    days_back: Annotated[int, "Number of days back to fetch"] = 7,
+    limit: Annotated[int, "Posts per page"] = 50,
 ) -> list[ListeningPost]:
     """Get recent posts for a specific listening query.
 
-    This is a convenience tool that fetches posts from the last N days
-    for a single listening query with sensible defaults.
+    This is a convenience tool that fetches recent posts from the last N days
+    for a single listening query. It's perfect for quick checks, daily monitoring,
+    or getting a sample of recent activity without specifying exact dates.
+
+    Args:
+        query_id: Listening query ID (get from list_listening_queries)
+        days_back: Number of days to look back from today (default: 7)
+        limit: Maximum posts per page to fetch (default: 50, max: 100)
+
+    Returns:
+        List of recent ListeningPost objects, sorted by interactions
+        (highest engagement first)
+
+    Date Calculation:
+        - End date: Today (current date in UTC)
+        - Start date: Today minus 'days_back' days
+        - Times are automatically set to cover the full date range
+
+    Authentication:
+        Requires EMPLIFI_TOKEN and EMPLIFI_SECRET environment variables.
+
+    Example Usage:
+        # Get last week's posts for a query
+        recent_posts = await get_recent_posts(
+            query_id="LNQ_1140092_66fe2dcd3e9eb298096e8db3",
+            days_back=7,
+            limit=25
+        )
+        
+        # Get yesterday's posts
+        yesterday_posts = await get_recent_posts(
+            query_id="your_query_id",
+            days_back=1,
+            limit=100
+        )
+
+    Common Use Cases:
+        - Daily monitoring dashboards
+        - Quick sentiment checks
+        - Recent activity summaries
+        - Real-time social media tracking
+        - Automated daily reports
+        - Testing query configurations
     """
     end_date = datetime.now(UTC)
     start_date = end_date - timedelta(days=days_back)
@@ -612,28 +385,7 @@ async def get_recent_posts(
         query_ids=[query_id],
         date_start=start_date.strftime("%Y-%m-%d"),
         date_end=end_date.strftime("%Y-%m-%d"),
-        limit=limit_per_page,
-        max_pages=max_pages,
-        sort=[PostsSort(field="created_time", order="desc")]
-    )
-
-
-async def get_daily_mention_metrics(
-    query_id: Annotated[str, "Listening query ID"],
-    days_back: Annotated[int, "Number of days back to analyze"] = 30,
-) -> ListeningMetrics:
-    """Get daily mention count metrics for a listening query.
-
-    This convenience tool fetches mention count metrics grouped by day
-    for the specified time period.
-    """
-    end_date = datetime.now(UTC)
-    start_date = end_date - timedelta(days=days_back)
-
-    return await fetch_listening_metrics(
-        query_ids=[query_id],
-        date_start=start_date.strftime("%Y-%m-%d"),
-        date_end=end_date.strftime("%Y-%m-%d"),
-        metrics=[MetricConfig(metric="content_count")],
-        dimensions=[DimensionConfig(type="date.day")]
+        limit=limit,
+        sort_field="interactions",
+        sort_order="desc",
     )

@@ -4,6 +4,10 @@
 
 set -e
 
+# Test configuration
+TARGET_QUERY_ID="LNQ_1140092_66fe2dcd3e9eb298096e8db3"
+TARGET_QUERY_NAME="BAYER"
+
 HOST="${MCP_HOST:-127.0.0.1}"
 PORT="${MCP_PORT:-8000}"
 PATH_PREFIX="${MCP_PATH:-/mcp}"
@@ -37,8 +41,16 @@ EOF
     local response=$(curl -s -X POST "$SERVER_URL" "${HEADERS[@]}" -d "$payload")
     
     if echo "$response" | grep -q '"error"'; then
-        echo "   ❌ Error: $(echo "$response" | grep -o '"message":"[^"]*"' | cut -d'"' -f4)"
-        return 1
+        local error_msg=$(echo "$response" | grep -o '"message":"[^"]*"' | cut -d'"' -f4)
+        
+        # Check for expected authentication errors for Emplifi tools
+        if [[ "$error_msg" == *"EMPLIFI_TOKEN"* ]] || [[ "$error_msg" == *"EMPLIFI_SECRET"* ]] || [[ "$error_msg" == *"credentials"* ]]; then
+            echo "   ⚠️  Expected: $error_msg (set EMPLIFI_TOKEN and EMPLIFI_SECRET for full test)"
+            return 0
+        else
+            echo "   ❌ Error: $error_msg"
+            return 1
+        fi
     elif echo "$response" | grep -q '"result"'; then
         if echo "$response" | grep -q 'event: message'; then
             # Parse SSE format
@@ -61,31 +73,42 @@ echo "1. Listing available tools..."
 make_mcp_call "tools/list" "{}" "List MCP tools"
 echo
 
-# Test 2: Timezone conversion
-echo "2. Testing timezone conversion..."
+# Test 2: List Emplifi listening queries (may fail if no credentials)
+echo "2. Testing Emplifi listening queries..."
 make_mcp_call "tools/call" '{
-    "name": "convert_timezone",
-    "arguments": {
-        "dt": "2025-08-10T15:30:00",
-        "from_tz": "Europe/Madrid",
-        "to_tz": "America/New_York"
-    }
-}' "Convert Madrid time to New York time"
+    "name": "list_listening_queries",
+    "arguments": {}
+}' "List available Emplifi listening queries"
 echo
 
-# Test 3: Unix time conversion
-echo "3. Testing Unix time conversion..."
+# Test 3: Get recent posts with real query ID
+echo "3. Testing Emplifi recent posts with BAYER query..."
 make_mcp_call "tools/call" '{
-    "name": "to_unix_time",
+    "name": "get_recent_posts", 
     "arguments": {
-        "dt": "2025-08-10T15:30:00+02:00",
-        "unit": "milliseconds"
+        "query_id": "'"$TARGET_QUERY_ID"'",
+        "days_back": 7,
+        "limit": 10
     }
-}' "Convert ISO time to Unix milliseconds"
+}' "Get recent posts for BAYER query (7 days, 10 posts)"
 echo
 
-# Test 4: Server ping
-echo "4. Testing server connectivity..."
+# Test 4: Fetch listening posts with date range
+echo "4. Testing Emplifi fetch posts with date range..."
+make_mcp_call "tools/call" '{
+    "name": "fetch_listening_posts",
+    "arguments": {
+        "query_ids": ["'"$TARGET_QUERY_ID"'"],
+        "date_start": "2025-08-05",
+        "date_end": "2025-08-12",
+        "limit": 5,
+        "sort_order": "desc"
+    }
+}' "Fetch BAYER posts from Aug 5-12, 2025"
+echo
+
+# Test 5: Server ping
+echo "5. Testing server connectivity..."
 make_mcp_call "ping" "{}" "Ping server"
 echo
 

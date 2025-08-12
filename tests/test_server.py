@@ -17,7 +17,12 @@ class TestServerStructure:
     def test_tool_registration_count(self) -> None:
         register_tools()
         tools = anyio.run(mcp.get_tools)
-        assert {"convert_timezone", "to_unix_time"}.issubset(tools.keys())
+        expected_tools = {
+            "list_listening_queries",
+            "fetch_listening_posts",
+            "get_recent_posts"
+        }
+        assert expected_tools.issubset(tools.keys())
 
 
 def test_environment_configuration(monkeypatch: pytest.MonkeyPatch) -> None:
