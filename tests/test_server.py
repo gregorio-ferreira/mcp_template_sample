@@ -3,7 +3,7 @@
 import anyio
 import pytest
 
-from mcp_server import config
+from mcp_server.core import config
 from mcp_server.server import main, mcp, register_tools
 
 
