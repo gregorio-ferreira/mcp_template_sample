@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -24,6 +25,8 @@ class ServerSettings(BaseSettings):
     # Emplifi API credentials
     emplifi_token: str | None = None
     emplifi_secret: str | None = None
+    emplifi_api_base: str = "https://api.emplifi.io/3"
+    emplifi_timeout: int = 30
 
     # OpenAI API credentials (for AI-powered chat agent)
     openai_api_key: str | None = None
@@ -32,15 +35,16 @@ class ServerSettings(BaseSettings):
         env_prefix="",  # No prefix to allow direct env var names
         case_sensitive=False,
         env_file=".env",
-        extra="ignore"  # Ignore extra environment variables
+        extra="ignore",  # Ignore extra environment variables
     )
 
-    def __init__(self, **data: str | int | bool | None) -> None:
+    def __init__(self, **data: Any) -> None:
         """Initialize settings with support for MCP_ prefixed variables."""
         super().__init__(**data)
-        
+
         # Override with MCP_ prefixed values if they exist
         import os
+
         if os.getenv("MCP_HOST"):
             self.host = os.getenv("MCP_HOST", self.host)
         if os.getenv("MCP_PORT"):
@@ -88,6 +92,12 @@ def get_emplifi_credentials() -> tuple[str | None, str | None]:
     return config.emplifi_token, config.emplifi_secret
 
 
+def get_emplifi_settings() -> tuple[str, int]:
+    """Get Emplifi API settings from configuration."""
+    config = get_config()
+    return config.emplifi_api_base, config.emplifi_timeout
+
+
 def get_openai_api_key() -> str | None:
     """Get OpenAI API key from configuration."""
     config = get_config()
@@ -100,5 +110,6 @@ __all__ = [
     "get_server_url",
     "load_environment",
     "get_emplifi_credentials",
-    "get_openai_api_key"
+    "get_emplifi_settings",
+    "get_openai_api_key",
 ]

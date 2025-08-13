@@ -14,13 +14,14 @@ import httpx
 import structlog
 from pydantic import BaseModel, Field, HttpUrl
 
-from mcp_server.core.config import get_emplifi_credentials
+from mcp_server.core.config import (
+    get_emplifi_credentials,
+    get_emplifi_settings,
+)
 
 logger = structlog.get_logger(__name__)
 
-# Constants
-API_BASE = "https://api.emplifi.io/3"
-DEFAULT_TIMEOUT = 30
+API_BASE, DEFAULT_TIMEOUT = get_emplifi_settings()
 
 
 # Models
