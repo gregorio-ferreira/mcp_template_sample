@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
 
 from dotenv import load_dotenv
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ENV_FILE_CANDIDATES = [".env", ".env.local"]
@@ -16,46 +16,27 @@ class ServerSettings(BaseSettings):
     """Runtime configuration sourced from environment variables."""
 
     # MCP Server settings
-    host: str = "127.0.0.1"
-    port: int = 8000
-    path: str = "/mcp"
-    debug: bool = False
-    log_level: str = "INFO"
+    host: str = Field(default="127.0.0.1", alias="MCP_HOST")
+    port: int = Field(default=8000, alias="MCP_PORT")
+    path: str = Field(default="/mcp", alias="MCP_PATH")
+    debug: bool = Field(default=False, alias="MCP_DEBUG")
+    log_level: str = Field(default="INFO", alias="MCP_LOG_LEVEL")
 
     # Emplifi API credentials
-    emplifi_token: str | None = None
-    emplifi_secret: str | None = None
-    emplifi_api_base: str = "https://api.emplifi.io/3"
-    emplifi_timeout: int = 30
+    emplifi_token: str | None = Field(default=None, alias="EMPLIFI_TOKEN")
+    emplifi_secret: str | None = Field(default=None, alias="EMPLIFI_SECRET")
+    emplifi_api_base: str = Field(default="https://api.emplifi.io/3", alias="EMPLIFI_API_BASE")
+    emplifi_timeout: int = Field(default=30, alias="EMPLIFI_TIMEOUT")
 
     # OpenAI API credentials (for AI-powered chat agent)
-    openai_api_key: str | None = None
+    openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
 
     model_config = SettingsConfigDict(
-        env_prefix="",  # No prefix to allow direct env var names
+        env_prefix="",
+        env_nested_delimiter="__",
         case_sensitive=False,
-        env_file=".env",
-        extra="ignore",  # Ignore extra environment variables
+        extra="ignore",
     )
-
-    def __init__(self, **data: Any) -> None:
-        """Initialize settings with support for MCP_ prefixed variables."""
-        super().__init__(**data)
-
-        # Override with MCP_ prefixed values if they exist
-        import os
-
-        if os.getenv("MCP_HOST"):
-            self.host = os.getenv("MCP_HOST", self.host)
-        if os.getenv("MCP_PORT"):
-            self.port = int(os.getenv("MCP_PORT", str(self.port)))
-        if os.getenv("MCP_PATH"):
-            self.path = os.getenv("MCP_PATH", self.path)
-        if os.getenv("MCP_DEBUG"):
-            debug_val = os.getenv("MCP_DEBUG", "").lower()
-            self.debug = debug_val in ("true", "1", "yes")
-        if os.getenv("MCP_LOG_LEVEL"):
-            self.log_level = os.getenv("MCP_LOG_LEVEL", self.log_level)
 
 
 def load_environment() -> None:

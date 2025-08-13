@@ -1,5 +1,7 @@
 """Server structure tests using singleton registration pattern."""
 
+from pathlib import Path
+
 import anyio
 import pytest
 
@@ -17,20 +19,21 @@ class TestServerStructure:
     def test_tool_registration_count(self) -> None:
         register_tools()
         tools = anyio.run(mcp.get_tools)
-        expected_tools = {
-            "list_listening_queries",
-            "fetch_listening_posts",
-            "get_recent_posts"
-        }
+        expected_tools = {"list_listening_queries", "fetch_listening_posts", "get_recent_posts"}
         assert expected_tools.issubset(tools.keys())
 
 
-def test_environment_configuration(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Environment variables should drive server configuration."""
+def test_environment_configuration(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Configuration should load values from an ``.env`` file."""
 
-    monkeypatch.setenv("MCP_HOST", "0.0.0.0")
-    monkeypatch.setenv("MCP_PORT", "9001")
-    monkeypatch.setenv("MCP_PATH", "/custom")
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "MCP_HOST=0.0.0.0\nMCP_PORT=9001\nMCP_PATH=/custom\n",
+    )
+    monkeypatch.setattr(
+        "mcp_server.core.config.ENV_FILE_CANDIDATES",
+        [str(env_file)],
+    )
     get_config.cache_clear()
 
     captured: dict[str, object] = {}
