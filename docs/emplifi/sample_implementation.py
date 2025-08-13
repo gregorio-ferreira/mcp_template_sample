@@ -47,8 +47,8 @@ import pandas as pd
 import requests
 from pandas import json_normalize
 
-BASE_URL = "https://api.emplifi.io/3"
-DEFAULT_TIMEOUT = 30  # seconds
+BASE_URL = os.getenv("EMPLIFI_API_BASE", "https://api.emplifi.io/3")
+DEFAULT_TIMEOUT = int(os.getenv("EMPLIFI_TIMEOUT", "30"))  # seconds
 
 
 # ------------------------
