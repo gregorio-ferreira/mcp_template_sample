@@ -25,7 +25,9 @@ class ServerSettings(BaseSettings):
     # Emplifi API credentials
     emplifi_token: str | None = Field(default=None, alias="EMPLIFI_TOKEN")
     emplifi_secret: str | None = Field(default=None, alias="EMPLIFI_SECRET")
-    emplifi_api_base: str = Field(default="https://api.emplifi.io/3", alias="EMPLIFI_API_BASE")
+    emplifi_api_base: str = Field(
+        default="https://api.emplifi.io/3", alias="EMPLIFI_API_BASE"
+    )
     emplifi_timeout: int = Field(default=30, alias="EMPLIFI_TIMEOUT")
 
     # OpenAI API credentials (for AI-powered chat agent)
@@ -40,12 +42,17 @@ class ServerSettings(BaseSettings):
 
 
 def load_environment() -> None:
-    """Load environment variables from the first existing ``.env`` file."""
+    """Load environment variables from the first existing ``.env`` file.
+
+    Uses ``override=True`` so that test-provided temp ``.env`` files replace
+    any previously loaded values in the same process (important for test
+    isolation when ``get_config.cache_clear()`` is used).
+    """
 
     for candidate in ENV_FILE_CANDIDATES:
         path = Path(candidate)
         if path.exists():
-            load_dotenv(path)
+            load_dotenv(path, override=True)
             break
 
 

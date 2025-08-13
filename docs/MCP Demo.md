@@ -152,11 +152,9 @@ async def main():
     # 1) Connect to the MCP server via Streamable HTTP
     client = MultiServerMCPClient(
         {
-            "time_tools": {
+            "emplifi": {
                 "transport": "streamable_http",
                 "url": "http://127.0.0.1:8000/mcp/",
-                # If you add auth later:
-                # "headers": {"Authorization": "Bearer <token>"},
             }
         }
     )
@@ -170,22 +168,16 @@ async def main():
     agent = create_react_agent(model, tools)
 
     # 4) Try a couple of calls
-    print("\n--- Example 1: timezone conversion ---")
-    res1 = await agent.ainvoke(
-        {
-            "messages": (
-                "Convert '2025-08-10 09:30' from Europe/Madrid to America/New_York. "
-                "Return ISO 8601."
-            )
-        }
-    )
+    print("\n--- Example 1: list listening queries ---")
+    res1 = await agent.ainvoke({"messages": "List Emplifi listening queries."})
     print(res1["messages"][-1].content)
 
-    print("\n--- Example 2: unix time (ms) ---")
+    print("\n--- Example 2: fetch recent posts (7 days) ---")
     res2 = await agent.ainvoke(
         {
             "messages": (
-                "Convert '2025-08-10T09:30:00+02:00' to Unix time in milliseconds."
+                "Get recent posts for query ID <YOUR_QUERY_ID> over last 7 days "
+                "sorted by interactions."
             )
         }
     )

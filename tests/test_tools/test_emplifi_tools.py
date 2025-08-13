@@ -54,7 +54,7 @@ class TestAuthentication:
 class TestListeningQueries:
     """Test listing queries functionality."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio  # type: ignore[misc]
     async def test_list_listening_queries_success(self):
         """Test successful query listing."""
         mock_response_data = {
@@ -93,8 +93,8 @@ class TestListeningQueries:
 class TestFetchingPosts:
     """Test fetching posts functionality."""
 
-    @pytest.mark.asyncio
-    async def test_fetch_listening_posts_success(self):
+    @pytest.mark.asyncio  # type: ignore[misc]
+    async def test_fetch_listening_posts_success(self) -> None:
         """Test successful post fetching."""
         mock_response_data = {
             "data": {
@@ -143,7 +143,75 @@ class TestFetchingPosts:
             assert isinstance(posts[0].url, HttpUrl)
 
     @pytest.mark.asyncio
-    async def test_get_recent_posts_success(self):
+    async def test_fetch_listening_posts_pagination_and_malformed(
+        self,
+    ) -> None:
+        """Test pagination loop + malformed post handling."""
+        first_page = {
+            "data": {
+                "posts": [
+                    {  # valid
+                        "id": "p1",
+                        "created_time": "2025-08-01T10:00:00Z",
+                        "platform": "twitter",
+                        "author": {"name": "a1"},
+                        "message": "Msg1",
+                    },
+                    {  # malformed (missing created_time)
+                        "id": "bad",
+                        "platform": "twitter",
+                        "message": "Bad",
+                    },
+                ],
+                "next": "cursor123",
+            }
+        }
+        second_page = {
+            "data": {
+                "posts": [
+                    {
+                        "id": "p2",
+                        "created_time": "2025-08-01T11:00:00Z",
+                        "platform": "facebook",
+                        "author": {"name": "a2"},
+                        "message": "Msg2",
+                    }
+                ],
+                "next": None,
+            }
+        }
+
+        # Build async mock responses
+        resp1 = AsyncMock(spec=Response)
+        resp1.raise_for_status = AsyncMock()
+        resp1.json.return_value = first_page
+        resp2 = AsyncMock(spec=Response)
+        resp2.raise_for_status = AsyncMock()
+        resp2.json.return_value = second_page
+
+        with (
+            patch(
+                "mcp_server.tools.emplifi_tools.get_emplifi_credentials",
+                return_value=(TEST_TOKEN, TEST_SECRET),
+            ),
+            patch("httpx.AsyncClient") as mock_client,
+        ):
+            mock_post = AsyncMock(side_effect=[resp1, resp2])
+            mock_ctx = mock_client.return_value.__aenter__.return_value
+            mock_ctx.post = mock_post
+
+            posts = await fetch_listening_posts(
+                query_ids=[TEST_QUERY_ID],
+                date_start="2025-08-01",
+                date_end="2025-08-02",
+            )
+
+            # Expect 2 valid posts (malformed skipped)
+            ids = {p.id for p in posts}
+            assert ids == {"p1", "p2"}
+
+    @pytest.mark.asyncio
+    async def test_get_recent_posts_success(self) -> None:
         """Test convenience function for recent posts."""
         mock_response_data = {
             "data": {
@@ -175,7 +243,9 @@ class TestFetchingPosts:
             mock_ctx = mock_client.return_value.__aenter__.return_value
             mock_ctx.post = mock_post
 
-            posts = await get_recent_posts(query_id=TEST_QUERY_ID, days_back=7, limit=50)
+            posts = await get_recent_posts(
+                query_id=TEST_QUERY_ID, days_back=7, limit=50
+            )
 
             assert len(posts) == 1
             assert posts[0].id == "recent_post"
@@ -187,7 +257,7 @@ class TestErrorHandling:
     """Test error handling scenarios."""
 
     @pytest.mark.asyncio
-    async def test_missing_credentials(self):
+    async def test_missing_credentials(self) -> None:
         """Test behavior with missing credentials."""
         with (
             patch(
@@ -199,7 +269,7 @@ class TestErrorHandling:
             await list_listening_queries()
 
     @pytest.mark.asyncio
-    async def test_http_error(self):
+    async def test_http_error(self) -> None:
         """Test HTTP error handling."""
         mock_response = AsyncMock(spec=Response)
         mock_response.raise_for_status.side_effect = RuntimeError("HTTP 401")

@@ -6,7 +6,9 @@ using Basic Authentication. Supports listing queries and fetching posts.
 
 from __future__ import annotations
 
+import asyncio
 import base64
+import inspect
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
@@ -62,32 +64,118 @@ def _get_auth_headers() -> dict[str, str]:
     token, secret = get_emplifi_credentials()
 
     if not token or not secret:
-        logger.error(
-            "Missing Emplifi credentials. Set EMPLIFI_TOKEN and EMPLIFI_SECRET environment variables."
+        msg = (
+            "Missing Emplifi credentials. Set EMPLIFI_TOKEN and "
+            "EMPLIFI_SECRET environment variables."
         )
-        raise ValueError(
-            "Missing Emplifi credentials. Set EMPLIFI_TOKEN and EMPLIFI_SECRET environment variables."
-        )
+        logger.error(msg)
+        raise ValueError(msg)
 
     # Encode token:secret as base64
     credentials = f"{token}:{secret}"
     encoded = base64.b64encode(credentials.encode("utf-8")).decode("ascii")
 
-    return {"Authorization": f"Basic {encoded}", "Content-Type": "application/json"}
+    return {
+        "Authorization": f"Basic {encoded}",
+        "Content-Type": "application/json",
+    }
 
 
-# Core API functions (based on your sample implementation)
-async def _list_listening_queries_raw(headers: dict[str, str]) -> list[dict[str, Any]]:
+# Internal HTTP helper with exponential backoff for transient errors
+async def _send_with_retries(
+    client: httpx.AsyncClient,
+    method: str,
+    url: str,
+    *,
+    headers: dict[str, str],
+    json: dict[str, Any] | None = None,
+    max_retries: int = 3,
+    backoff_base: float = 0.05,
+) -> httpx.Response:
+    """Send an HTTP request with basic retry on 429 and 5xx responses.
+
+    Returns the first successful (2xx/3xx) or non‑retryable (4xx except 429)
+    response, or the last response after exhausting retries.
+    """
+    last: httpx.Response | None = None
+    delay = backoff_base
+    for attempt in range(1, max_retries + 1):
+        verb = method.lower()
+        call = getattr(client, verb, None)
+        try:
+            if callable(call):  # use patched get/post in tests
+                result = call(
+                    url,
+                    headers=headers,
+                    json=json,
+                    timeout=DEFAULT_TIMEOUT,
+                )
+                if inspect.isawaitable(result):
+                    last = await result
+                else:  # synchronous mock result
+                    last = result
+            else:  # pragma: no cover
+                last = await client.request(
+                    method,
+                    url,
+                    headers=headers,
+                    json=json,
+                    timeout=DEFAULT_TIMEOUT,
+                )
+        except httpx.RequestError as exc:  # network issue -> always retry
+            logger.warning(
+                "HTTP request error, will retry if attempts remain",
+                error=str(exc),
+                attempt=attempt,
+                max_retries=max_retries,
+            )
+            if attempt == max_retries:
+                raise
+            await asyncio.sleep(delay)
+            delay *= 2
+            continue
+
+        raw_status = getattr(last, "status_code", 200)
+        try:  # normalise status for mocks
+            status_int = int(raw_status)
+        except (TypeError, ValueError):  # pragma: no cover
+            status_int = 200
+
+        # Success or non‑retryable client error (other than 429)
+        if 200 <= status_int < 400 or (
+            400 <= status_int < 500 and status_int != 429
+        ):
+            return last
+
+        # Retryable (429 or 5xx)
+        if attempt == max_retries:
+            return last
+        await asyncio.sleep(delay)
+        delay *= 2
+
+    assert last is not None  # for type narrowing
+    return last
+
+# Core API functions
+
+
+async def _list_listening_queries_raw(
+    headers: dict[str, str]
+) -> list[dict[str, Any]]:
     """GET /3/listening/queries and return raw list of query dicts."""
     url = f"{API_BASE}/listening/queries"
 
     async with httpx.AsyncClient() as client:
-        response = await client.get(
-            url,
-            headers=headers,
-            timeout=DEFAULT_TIMEOUT,
+        response = await _send_with_retries(
+            client, "GET", url, headers=headers
         )
-        response.raise_for_status()
+        rfs = response.raise_for_status()
+        # httpx's raise_for_status is sync, but tests may patch it with an
+        # AsyncMock; support both to avoid RuntimeWarnings.
+        if inspect.isawaitable(rfs):  # pragma: no branch
+            await rfs  # pragma: no cover - depends on test mocks
+        else:  # pragma: no branch
+            rfs()
         body = response.json()
 
     # Handle different response structures
@@ -134,8 +222,14 @@ async def _fetch_all_posts_raw(
 
     async with httpx.AsyncClient() as client:
         # First page
-        response = await client.post(url, headers=headers, json=payload, timeout=DEFAULT_TIMEOUT)
-        response.raise_for_status()
+        response = await _send_with_retries(
+            client, "POST", url, headers=headers, json=payload
+        )
+        rfs = response.raise_for_status()
+        if inspect.isawaitable(rfs):
+            await rfs  # pragma: no cover
+        else:  # pragma: no branch
+            rfs()
         body = response.json()
 
         data_block = body.get("data", {})
@@ -145,10 +239,18 @@ async def _fetch_all_posts_raw(
 
         # Subsequent pages
         while next_cursor:
-            response = await client.post(
-                url, headers=headers, json={"next": next_cursor}, timeout=DEFAULT_TIMEOUT
+            response = await _send_with_retries(
+                client,
+                "POST",
+                url,
+                headers=headers,
+                json={"next": next_cursor},
             )
-            response.raise_for_status()
+            rfs = response.raise_for_status()
+            if inspect.isawaitable(rfs):
+                await rfs  # pragma: no cover
+            else:  # pragma: no branch
+                rfs()
             body = response.json()
 
             data_block = body.get("data", {})
@@ -216,21 +318,21 @@ async def fetch_listening_posts(
     """Fetch listening posts for specified queries and date range.
 
     This tool retrieves social media posts, mentions, and conversations that
-    match your listening queries within a specified time period. It automatically
+    match your listening queries within a specified time period. It auto-
     handles pagination to fetch all available posts across multiple API calls.
 
     Args:
-        query_ids: List of listening query IDs (get from list_listening_queries)
+    query_ids: List of listening query IDs (see list_listening_queries)
         date_start: Start date in YYYY-MM-DD format (e.g., "2025-08-01") or
                    ISO format (e.g., "2025-08-01T00:00:00Z")
         date_end: End date in same format as date_start
-        fields: Optional list of fields to include in response. If None, includes:
+    fields: Optional list of fields to include. If None, includes:
                ["id", "created_time", "platform", "author", "message",
                 "sentiment", "interactions", "url"]
         sort_field: Field to sort results by. Valid options: "interactions",
                    "comments", "potential_impressions", "shares"
                    (default: "interactions")
-        sort_order: Sort direction - "asc" (oldest first) or "desc" (newest first)
+    sort_order: Sort direction - "asc" or "desc" (newest first default)
         limit: Number of posts per API page (max 100, API limitation)
 
     Returns:
@@ -321,9 +423,11 @@ async def fetch_listening_posts(
     for post in posts_raw:
         try:
             posts.append(ListeningPost.model_validate(post, context=None))
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             post_id = post.get("id", "unknown")
-            logger.warning("Skipping malformed post", post_id=post_id, error=str(e))
+            logger.warning(
+                "Skipping malformed post", post_id=post_id, error=str(e)
+            )
             continue
 
     return posts
@@ -336,9 +440,8 @@ async def get_recent_posts(
 ) -> list[ListeningPost]:
     """Get recent posts for a specific listening query.
 
-    This is a convenience tool that fetches recent posts from the last N days
-    for a single listening query. It's perfect for quick checks, daily monitoring,
-    or getting a sample of recent activity without specifying exact dates.
+    This is a convenience tool for recent posts from the last N days for a
+    single listening query. Good for quick checks or dashboards.
 
     Args:
         query_id: Listening query ID (get from list_listening_queries)

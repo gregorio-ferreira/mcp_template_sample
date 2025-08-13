@@ -12,23 +12,22 @@ mcp-server-template/
 │   └── mcp_server/
 │       ├── __init__.py
 │       ├── server.py           # Main server that registers tools
-│       ├── models.py           # Pydantic models for type safety
-│       ├── config.py           # Configuration management
-│       ├── utils.py            # Utility functions
+│       ├── core/               # Configuration & logging
+│       ├── monitoring.py       # Performance decorators
 │       └── tools/              # Tool implementations directory
 │           ├── __init__.py
-│           ├── time_tools.py   # Time-related tools
-│           ├── file_tools.py   # File manipulation tools (example)
-│           └── data_tools.py   # Data processing tools (example)
+│           ├── emplifi_tools.py # Emplifi Listening API tools
+│           ├── file_tools.py    # File manipulation tools (example)
+│           └── data_tools.py    # Data processing tools (example)
 ├── tests/
 │   ├── __init__.py
 │   ├── conftest.py            # Pytest fixtures
 │   ├── test_server.py         # Server tests
 │   └── test_tools/            # Tool-specific tests
 │       ├── __init__.py
-│       ├── test_time_tools.py
 │       ├── test_file_tools.py
-│       └── test_data_tools.py
+│       ├── test_data_tools.py
+│       └── test_emplifi_tools.py
 ├── examples/
 │   ├── agent_client.py        # Example LangGraph agent
 │   └── simple_client.py       # Simple client example
@@ -390,12 +389,12 @@ def parse_datetime(dt: str, assume_tz: Optional[str] = None) -> datetime:
 ```python
 """Tool implementations for the MCP server."""
 
-from mcp_server.tools.time_tools import convert_timezone, to_unix_time
+from mcp_server.tools.emplifi_tools import list_listening_queries, fetch_listening_posts
 
-__all__ = ["convert_timezone", "to_unix_time"]
+__all__ = ["list_listening_queries", "fetch_listening_posts"]
 ```
 
-### src/mcp_server/tools/time_tools.py
+### src/mcp_server/tools/emplifi_tools.py (excerpt)
 
 ```python
 """Time and timezone related tools."""
@@ -890,19 +889,19 @@ class TestServerStructure:
     def test_all_tools_registered(self) -> None:
         """Test that all defined tools are registered."""
         # Get all tool functions from tools package
-        from mcp_server.tools import time_tools
+        from mcp_server.tools import emplifi_tools
         
         # Count functions that should be tools
-        time_tool_funcs = [
-            name for name in dir(time_tools)
-            if not name.startswith("_") and callable(getattr(time_tools, name))
+        emplifi_funcs = [
+            name for name in dir(emplifi_tools)
+            if not name.startswith("_") and callable(getattr(emplifi_tools, name))
         ]
         
         # Ensure key functions are registered
         register_tools()  # Make sure tools are registered
         registered_names = {tool.name for tool in mcp._tools.values()}
         
-        for func_name in ["convert_timezone", "to_unix_time"]:
+    for func_name in ["list_listening_queries", "fetch_listening_posts"]:
             assert func_name in registered_names, f"Tool {func_name} not registered"
 ```
 
@@ -912,7 +911,7 @@ class TestServerStructure:
 """Tool-specific tests."""
 ```
 
-### tests/test_tools/test_time_tools.py
+### tests/test_tools/test_emplifi_tools.py
 
 ```python
 """Tests for time tools."""
@@ -923,8 +922,7 @@ import pytest
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from mcp_server.tools.time_tools import convert_timezone, to_unix_time
-from mcp_server.utils import parse_datetime
+from mcp_server.tools.emplifi_tools import list_listening_queries
 
 
 class TestTimezoneConversion:
@@ -1137,10 +1135,7 @@ pytest
 pytest --cov
 
 # Run specific test module
-pytest tests/test_tools/test_time_tools.py
-
-# Run specific test class
-pytest tests/test_tools/test_time_tools.py::TestTimezoneConversion
+pytest tests/test_tools/test_emplifi_tools.py
 ```
 
 ### Using with LangChain/LangGraph
@@ -1183,9 +1178,9 @@ def register_tools() -> None:
 
 ### Tool Organization
 
-The template includes example tool categories:
+Current example tool categories:
 
-- **`time_tools.py`**: Time and timezone operations
+- **`emplifi_tools.py`**: Emplifi Listening API integration (queries/posts)
 - **`file_tools.py`**: File system operations (template)
 - **`data_tools.py`**: Data processing utilities (template)
 
@@ -1216,13 +1211,12 @@ ruff check src/ tests/
 ```
 ├── src/mcp_server/        # Main package
 │   ├── server.py          # Server setup and tool registration
-│   ├── models.py          # Pydantic models
-│   ├── config.py          # Configuration
-│   ├── utils.py           # Shared utilities
+│   ├── core/              # Configuration & logging
+│   ├── monitoring.py      # Performance decorators
 │   └── tools/             # Tool implementations
-│       ├── time_tools.py  # Time-related tools
-│       ├── file_tools.py  # File operations
-│       └── data_tools.py  # Data processing
+│       ├── emplifi_tools.py  # Emplifi API tools
+│       ├── file_tools.py     # File operations
+│       └── data_tools.py     # Data processing
 ├── tests/                 # Test suite
 │   └── test_tools/        # Tool-specific tests
 └── examples/              # Usage examples
