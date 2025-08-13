@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
-import logging
 import time
 from collections.abc import Awaitable, Callable
 from functools import wraps
 from typing import ParamSpec, TypeVar
 
+import structlog
+
+from mcp_server.core import configure_logging
+
 P = ParamSpec("P")
 R = TypeVar("R")
 
-logger = logging.getLogger(__name__)
+configure_logging()
+logger = structlog.get_logger(__name__)
 
 
 def monitor_performance(func: Callable[P, R]) -> Callable[P, R]:  # noqa: UP047
