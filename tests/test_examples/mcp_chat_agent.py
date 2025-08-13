@@ -14,12 +14,12 @@ import sys
 
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
-
 # Import centralized configuration
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
-from mcp_server.core.config import get_openai_api_key
+from mcp_server.core.config import get_openai_api_key  # noqa: E402
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Server configuration
 SERVER_URL = "http://127.0.0.1:8000/mcp/"
@@ -260,44 +260,46 @@ class MCPConversationalAgent:
                 if tool.name == "list_listening_queries":
                     print("   Fetching all listening queries...")
                     result = await tool.ainvoke({})
-                    
+
                     # Handle string result (JSON) or list result
                     if isinstance(result, str):
                         import json
+
                         queries = json.loads(result)
                     elif isinstance(result, list):
                         queries = result
                     else:
-                        queries = result.get('result', [])
-                    
+                        queries = result.get("result", [])
+
                     print(f"\n   📊 Found {len(queries)} listening queries")
-                    
+
                     # Show first 5 queries as examples
                     print("\n   📝 Sample queries:")
                     for i, query in enumerate(queries[:5], 1):
                         if isinstance(query, dict):
-                            name = query.get('name', 'Unknown')
-                            status = query.get('status', 'Unknown')
+                            name = query.get("name", "Unknown")
+                            status = query.get("status", "Unknown")
                         else:
-                            name = getattr(query, 'name', 'Unknown')
-                            status = getattr(query, 'status', 'Unknown')
+                            name = getattr(query, "name", "Unknown")
+                            status = getattr(query, "status", "Unknown")
                         print(f"      {i}. {name} - Status: {status}")
-                    
+
                     if len(queries) > 5:
                         print(f"      ... and {len(queries) - 5} more")
-                    
+
                     break
             else:
                 print("   ❌ list_listening_queries tool not found")
         except Exception as e:
             print(f"   ❌ Error: {e}")
             import traceback
+
             traceback.print_exc()
 
     async def _demo_recent_posts(self) -> None:
         """Demo recent posts retrieval."""
         print("\n📱 Recent Posts Demo")
-        
+
         # BAYER query ID that we know works
         bayer_query_id = "LNQ_1140092_66fe2dcd3e9eb298096e8db3"
 
@@ -306,44 +308,42 @@ class MCPConversationalAgent:
             for tool in self.tools:
                 if tool.name == "get_recent_posts":
                     print("   Getting recent posts for BAYER query...")
-                    result = await tool.ainvoke({
-                        "query_id": bayer_query_id,
-                        "days_back": 7,
-                        "limit": 3
-                    })
-                    
+                    result = await tool.ainvoke(
+                        {"query_id": bayer_query_id, "days_back": 7, "limit": 3}
+                    )
+
                     # Handle string result (JSON) or list result
                     if isinstance(result, str):
                         import json
+
                         posts = json.loads(result)
                     elif isinstance(result, list):
                         posts = result
                     else:
-                        posts = result.get('result', [])
-                    
+                        posts = result.get("result", [])
+
                     print(f"\n   📊 Found {len(posts)} recent posts")
-                    
+
                     if posts:
                         print("\n   📝 Sample posts:")
                         for i, post in enumerate(posts[:3], 1):
                             if isinstance(post, dict):
-                                platform = post.get('platform', 'Unknown')
-                                interactions = post.get('interactions', 0)
-                                sentiment = post.get('sentiment', 'Unknown')
-                                message = post.get('message', '')[:80]
+                                platform = post.get("platform", "Unknown")
+                                interactions = post.get("interactions", 0)
+                                sentiment = post.get("sentiment", "Unknown")
+                                message = post.get("message", "")[:80]
                             else:
-                                platform = getattr(post, 'platform', 'Unknown')
-                                interactions = getattr(post, 'interactions', 0)
-                                sentiment = getattr(post, 'sentiment', 'Unknown')
-                                message = getattr(post, 'message', '')[:80]
-                            
-                            print(f"      {i}. {platform.upper()} - "
-                                  f"{interactions:,} interactions")
+                                platform = getattr(post, "platform", "Unknown")
+                                interactions = getattr(post, "interactions", 0)
+                                sentiment = getattr(post, "sentiment", "Unknown")
+                                message = getattr(post, "message", "")[:80]
+
+                            print(f"      {i}. {platform.upper()} - {interactions:,} interactions")
                             print(f"         Sentiment: {sentiment}")
                             print(f"         Message: {message}...")
                     else:
                         print("   No recent posts found")
-                    
+
                     break
             else:
                 print("   ❌ get_recent_posts tool not found")
@@ -353,7 +353,7 @@ class MCPConversationalAgent:
     async def _demo_fetch_posts(self) -> None:
         """Demo fetching posts from specific date range."""
         print("\n📅 Date Range Posts Demo")
-        
+
         # BAYER query ID and known working date range
         bayer_query_id = "LNQ_1140092_66fe2dcd3e9eb298096e8db3"
         start_date = "2025-08-05"
@@ -364,43 +364,46 @@ class MCPConversationalAgent:
             for tool in self.tools:
                 if tool.name == "fetch_listening_posts":
                     print(f"   Fetching posts from {start_date} to {end_date}...")
-                    result = await tool.ainvoke({
-                        "query_ids": [bayer_query_id],
-                        "date_start": start_date,
-                        "date_end": end_date,
-                        "limit": 5
-                    })
-                    
+                    result = await tool.ainvoke(
+                        {
+                            "query_ids": [bayer_query_id],
+                            "date_start": start_date,
+                            "date_end": end_date,
+                            "limit": 5,
+                        }
+                    )
+
                     # Handle string result (JSON) or list result
                     if isinstance(result, str):
                         import json
+
                         posts = json.loads(result)
                     elif isinstance(result, list):
                         posts = result
                     else:
-                        posts = result.get('result', [])
-                    
+                        posts = result.get("result", [])
+
                     print(f"\n   📊 Found {len(posts)} posts in date range")
-                    
+
                     if posts:
                         print("\n   📝 Sample posts:")
                         for i, post in enumerate(posts[:3], 1):
                             if isinstance(post, dict):
-                                platform = post.get('platform', 'Unknown')
-                                created_time = post.get('created_time', 'Unknown')
+                                platform = post.get("platform", "Unknown")
+                                created_time = post.get("created_time", "Unknown")
                                 created = created_time[:10]
-                                interactions = post.get('interactions', 0)
+                                interactions = post.get("interactions", 0)
                             else:
-                                platform = getattr(post, 'platform', 'Unknown')
-                                created_time = getattr(post, 'created_time', 'Unknown')
+                                platform = getattr(post, "platform", "Unknown")
+                                created_time = getattr(post, "created_time", "Unknown")
                                 created = created_time[:10]
-                                interactions = getattr(post, 'interactions', 0)
-                            
+                                interactions = getattr(post, "interactions", 0)
+
                             print(f"      {i}. {platform.upper()} - {created}")
                             print(f"         Interactions: {interactions:,}")
                     else:
                         print("   No posts found in date range")
-                    
+
                     break
             else:
                 print("   ❌ fetch_listening_posts tool not found")

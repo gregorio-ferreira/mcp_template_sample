@@ -7,12 +7,16 @@ using Basic Authentication. Supports listing queries and fetching posts.
 from __future__ import annotations
 
 import base64
-import os
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
 import httpx
+import structlog
 from pydantic import BaseModel
+
+from mcp_server.core.config import get_emplifi_credentials
+
+logger = structlog.get_logger(__name__)
 
 # Constants
 API_BASE = "https://api.emplifi.io/3"
@@ -44,17 +48,15 @@ class ListeningPost(BaseModel):
 
 # Authentication helper
 def _get_auth_headers() -> dict[str, str]:
-    """Build Basic authentication headers from environment variables.
-
-    Expects EMPLIFI_TOKEN and EMPLIFI_SECRET environment variables.
-    """
-    token = os.environ.get("EMPLIFI_TOKEN")
-    secret = os.environ.get("EMPLIFI_SECRET")
+    """Build Basic authentication headers from configured credentials."""
+    token, secret = get_emplifi_credentials()
 
     if not token or not secret:
+        logger.error(
+            "Missing Emplifi credentials. Set EMPLIFI_TOKEN and EMPLIFI_SECRET environment variables."
+        )
         raise ValueError(
-            "Missing Emplifi credentials. Set EMPLIFI_TOKEN and "
-            "EMPLIFI_SECRET environment variables."
+            "Missing Emplifi credentials. Set EMPLIFI_TOKEN and EMPLIFI_SECRET environment variables."
         )
 
     # Encode token:secret as base64
@@ -323,7 +325,7 @@ async def fetch_listening_posts(
         except Exception as e:
             # Skip malformed posts but log the issue
             post_id = post.get("id", "unknown")
-            print(f"Warning: Skipping malformed post {post_id}: {e}")
+            logger.warning("Skipping malformed post", post_id=post_id, error=str(e))
             continue
 
     return posts
