@@ -12,7 +12,7 @@ from typing import Annotated, Any
 
 import httpx
 import structlog
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, HttpUrl
 
 from mcp_server.core.config import get_emplifi_credentials
 
@@ -33,17 +33,26 @@ class ListeningQuery(BaseModel):
     status: str | None = None
 
 
+class ListeningAuthor(BaseModel):
+    """Author information for a listening post."""
+
+    id: str | None = None
+    name: str | None = None
+    username: str | None = None
+    url: HttpUrl | None = None
+
+
 class ListeningPost(BaseModel):
     """A listening post (mention) from the Emplifi API."""
 
     id: str
-    created_time: str
+    created_time: datetime = Field(..., alias="created_time")
     platform: str
-    author: dict[str, Any]
+    author: ListeningAuthor | None = None
     message: str
     sentiment: str | None = None
     interactions: int | None = None
-    url: str | None = None
+    url: HttpUrl | None = None
 
 
 # Authentication helper
@@ -307,23 +316,11 @@ async def fetch_listening_posts(
     )
 
     # Convert to Pydantic models
-    posts = []
+    posts: list[ListeningPost] = []
     for post in posts_raw:
         try:
-            posts.append(
-                ListeningPost(
-                    id=post["id"],
-                    created_time=post.get("created_time", ""),
-                    platform=post.get("platform", ""),
-                    author=post.get("author", {}),
-                    message=post.get("message", ""),
-                    sentiment=post.get("sentiment"),
-                    interactions=post.get("interactions"),
-                    url=post.get("url"),
-                )
-            )
+            posts.append(ListeningPost.model_validate(post, context=None))
         except Exception as e:
-            # Skip malformed posts but log the issue
             post_id = post.get("id", "unknown")
             logger.warning("Skipping malformed post", post_id=post_id, error=str(e))
             continue

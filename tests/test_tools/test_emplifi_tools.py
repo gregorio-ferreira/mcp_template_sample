@@ -1,11 +1,14 @@
 """Tests for simplified Emplifi Listening API tools."""
 
+from datetime import datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import Response
+from pydantic import HttpUrl
 
 from mcp_server.tools.emplifi_tools import (
+    ListeningAuthor,
     ListeningPost,
     ListeningQuery,
     _get_auth_headers,
@@ -135,6 +138,9 @@ class TestFetchingPosts:
             assert posts[0].id == "post_123"
             assert posts[0].platform == "twitter"
             assert posts[0].sentiment == "positive"
+            assert isinstance(posts[0].created_time, datetime)
+            assert isinstance(posts[0].author, ListeningAuthor)
+            assert isinstance(posts[0].url, HttpUrl)
 
     @pytest.mark.asyncio
     async def test_get_recent_posts_success(self):
@@ -173,6 +179,8 @@ class TestFetchingPosts:
 
             assert len(posts) == 1
             assert posts[0].id == "recent_post"
+            assert isinstance(posts[0].created_time, datetime)
+            assert isinstance(posts[0].author, ListeningAuthor)
 
 
 class TestErrorHandling:
