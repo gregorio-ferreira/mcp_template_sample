@@ -1,6 +1,5 @@
 """Tests for simplified Emplifi Listening API tools."""
 
-import os
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -26,7 +25,10 @@ class TestAuthentication:
 
     def test_get_auth_headers_success(self):
         """Test building auth headers with valid credentials."""
-        with patch.dict(os.environ, {"EMPLIFI_TOKEN": TEST_TOKEN, "EMPLIFI_SECRET": TEST_SECRET}):
+        with patch(
+            "mcp_server.tools.emplifi_tools.get_emplifi_credentials",
+            return_value=(TEST_TOKEN, TEST_SECRET),
+        ):
             headers = _get_auth_headers()
 
             assert "Authorization" in headers
@@ -36,9 +38,14 @@ class TestAuthentication:
 
     def test_get_auth_headers_missing_credentials(self):
         """Test auth headers fail with missing credentials."""
-        with patch.dict(os.environ, {}, clear=True):
-            with pytest.raises(ValueError, match="Missing Emplifi credentials"):
-                _get_auth_headers()
+        with (
+            patch(
+                "mcp_server.tools.emplifi_tools.get_emplifi_credentials",
+                return_value=(None, None),
+            ),
+            pytest.raises(ValueError, match="Missing Emplifi credentials"),
+        ):
+            _get_auth_headers()
 
 
 class TestListeningQueries:
@@ -62,17 +69,22 @@ class TestListeningQueries:
         mock_response.raise_for_status = AsyncMock()
         mock_response.json.return_value = mock_response_data
 
-        with patch.dict(os.environ, {"EMPLIFI_TOKEN": TEST_TOKEN, "EMPLIFI_SECRET": TEST_SECRET}):
-            with patch("httpx.AsyncClient") as mock_client:
-                mock_get = AsyncMock(return_value=mock_response)
-                mock_client.return_value.__aenter__.return_value.get = mock_get
+        with (
+            patch(
+                "mcp_server.tools.emplifi_tools.get_emplifi_credentials",
+                return_value=(TEST_TOKEN, TEST_SECRET),
+            ),
+            patch("httpx.AsyncClient") as mock_client,
+        ):
+            mock_get = AsyncMock(return_value=mock_response)
+            mock_client.return_value.__aenter__.return_value.get = mock_get
 
-                queries = await list_listening_queries()
+            queries = await list_listening_queries()
 
-                assert len(queries) == 1
-                assert isinstance(queries[0], ListeningQuery)
-                assert queries[0].id == TEST_QUERY_ID
-                assert queries[0].name == "Test Query"
+            assert len(queries) == 1
+            assert isinstance(queries[0], ListeningQuery)
+            assert queries[0].id == TEST_QUERY_ID
+            assert queries[0].name == "Test Query"
 
 
 class TestFetchingPosts:
@@ -103,21 +115,26 @@ class TestFetchingPosts:
         mock_response.raise_for_status = AsyncMock()
         mock_response.json.return_value = mock_response_data
 
-        with patch.dict(os.environ, {"EMPLIFI_TOKEN": TEST_TOKEN, "EMPLIFI_SECRET": TEST_SECRET}):
-            with patch("httpx.AsyncClient") as mock_client:
-                mock_post = AsyncMock(return_value=mock_response)
-                mock_ctx = mock_client.return_value.__aenter__.return_value
-                mock_ctx.post = mock_post
+        with (
+            patch(
+                "mcp_server.tools.emplifi_tools.get_emplifi_credentials",
+                return_value=(TEST_TOKEN, TEST_SECRET),
+            ),
+            patch("httpx.AsyncClient") as mock_client,
+        ):
+            mock_post = AsyncMock(return_value=mock_response)
+            mock_ctx = mock_client.return_value.__aenter__.return_value
+            mock_ctx.post = mock_post
 
-                posts = await fetch_listening_posts(
-                    query_ids=[TEST_QUERY_ID], date_start="2025-08-01", date_end="2025-08-02"
-                )
+            posts = await fetch_listening_posts(
+                query_ids=[TEST_QUERY_ID], date_start="2025-08-01", date_end="2025-08-02"
+            )
 
-                assert len(posts) == 1
-                assert isinstance(posts[0], ListeningPost)
-                assert posts[0].id == "post_123"
-                assert posts[0].platform == "twitter"
-                assert posts[0].sentiment == "positive"
+            assert len(posts) == 1
+            assert isinstance(posts[0], ListeningPost)
+            assert posts[0].id == "post_123"
+            assert posts[0].platform == "twitter"
+            assert posts[0].sentiment == "positive"
 
     @pytest.mark.asyncio
     async def test_get_recent_posts_success(self):
@@ -141,16 +158,21 @@ class TestFetchingPosts:
         mock_response.raise_for_status = AsyncMock()
         mock_response.json.return_value = mock_response_data
 
-        with patch.dict(os.environ, {"EMPLIFI_TOKEN": TEST_TOKEN, "EMPLIFI_SECRET": TEST_SECRET}):
-            with patch("httpx.AsyncClient") as mock_client:
-                mock_post = AsyncMock(return_value=mock_response)
-                mock_ctx = mock_client.return_value.__aenter__.return_value
-                mock_ctx.post = mock_post
+        with (
+            patch(
+                "mcp_server.tools.emplifi_tools.get_emplifi_credentials",
+                return_value=(TEST_TOKEN, TEST_SECRET),
+            ),
+            patch("httpx.AsyncClient") as mock_client,
+        ):
+            mock_post = AsyncMock(return_value=mock_response)
+            mock_ctx = mock_client.return_value.__aenter__.return_value
+            mock_ctx.post = mock_post
 
-                posts = await get_recent_posts(query_id=TEST_QUERY_ID, days_back=7, limit=50)
+            posts = await get_recent_posts(query_id=TEST_QUERY_ID, days_back=7, limit=50)
 
-                assert len(posts) == 1
-                assert posts[0].id == "recent_post"
+            assert len(posts) == 1
+            assert posts[0].id == "recent_post"
 
 
 class TestErrorHandling:
@@ -159,20 +181,30 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_missing_credentials(self):
         """Test behavior with missing credentials."""
-        with patch.dict(os.environ, {}, clear=True):
-            with pytest.raises(ValueError):
-                await list_listening_queries()
+        with (
+            patch(
+                "mcp_server.tools.emplifi_tools.get_emplifi_credentials",
+                return_value=(None, None),
+            ),
+            pytest.raises(ValueError),
+        ):
+            await list_listening_queries()
 
     @pytest.mark.asyncio
     async def test_http_error(self):
         """Test HTTP error handling."""
         mock_response = AsyncMock(spec=Response)
-        mock_response.raise_for_status.side_effect = Exception("HTTP 401")
+        mock_response.raise_for_status.side_effect = RuntimeError("HTTP 401")
 
-        with patch.dict(os.environ, {"EMPLIFI_TOKEN": TEST_TOKEN, "EMPLIFI_SECRET": TEST_SECRET}):
-            with patch("httpx.AsyncClient") as mock_client:
-                mock_get = AsyncMock(return_value=mock_response)
-                mock_client.return_value.__aenter__.return_value.get = mock_get
+        with (
+            patch(
+                "mcp_server.tools.emplifi_tools.get_emplifi_credentials",
+                return_value=(TEST_TOKEN, TEST_SECRET),
+            ),
+            patch("httpx.AsyncClient") as mock_client,
+        ):
+            mock_get = AsyncMock(return_value=mock_response)
+            mock_client.return_value.__aenter__.return_value.get = mock_get
 
-                with pytest.raises(Exception):
-                    await list_listening_queries()
+            with pytest.raises(RuntimeError):
+                await list_listening_queries()
