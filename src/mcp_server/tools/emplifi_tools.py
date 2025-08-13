@@ -4,6 +4,8 @@ This module provides simplified tools for interacting with the Emplifi API
 using Basic Authentication. Supports listing queries and fetching posts.
 """
 
+from __future__ import annotations
+
 import base64
 import os
 from datetime import UTC, datetime, timedelta
@@ -207,11 +209,11 @@ async def fetch_listening_posts(
 
     Args:
         query_ids: List of listening query IDs (get from list_listening_queries)
-        date_start: Start date in YYYY-MM-DD format (e.g., "2025-08-01") or 
+        date_start: Start date in YYYY-MM-DD format (e.g., "2025-08-01") or
                    ISO format (e.g., "2025-08-01T00:00:00Z")
         date_end: End date in same format as date_start
         fields: Optional list of fields to include in response. If None, includes:
-               ["id", "created_time", "platform", "author", "message", 
+               ["id", "created_time", "platform", "author", "message",
                 "sentiment", "interactions", "url"]
         sort_field: Field to sort results by. Valid options: "interactions",
                    "comments", "potential_impressions", "shares"
@@ -253,7 +255,7 @@ async def fetch_listening_posts(
             sort_order="desc",
             limit=50
         )
-        
+
         # Get posts from multiple queries
         posts = await fetch_listening_posts(
             query_ids=["query1", "query2", "query3"],
@@ -362,7 +364,7 @@ async def get_recent_posts(
             days_back=7,
             limit=25
         )
-        
+
         # Get yesterday's posts
         yesterday_posts = await get_recent_posts(
             query_id="your_query_id",
