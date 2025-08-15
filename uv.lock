@@ -1540,6 +1540,8 @@ source = { editable = "." }
 dependencies = [
     { name = "fastmcp" },
     { name = "httpx" },
+    { name = "ipykernel" },
+    { name = "pandas" },
     { name = "pydantic" },
     { name = "python-dateutil" },
     { name = "python-dotenv" },
@@ -1589,6 +1591,7 @@ dev = [
 requires-dist = [
     { name = "fastmcp", specifier = ">=2.0" },
     { name = "httpx", specifier = ">=0.25" },
+    { name = "ipykernel", specifier = ">=6.25" },
     { name = "ipykernel", marker = "extra == 'notebook'", specifier = ">=6.25" },
     { name = "jupyter", marker = "extra == 'notebook'", specifier = ">=1.0" },
     { name = "jupyterlab", marker = "extra == 'notebook'", specifier = ">=4.0" },
@@ -1598,6 +1601,7 @@ requires-dist = [
     { name = "matplotlib", marker = "extra == 'notebook'", specifier = ">=3.7" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8" },
     { name = "notebook", marker = "extra == 'notebook'", specifier = ">=7.0" },
+    { name = "pandas", specifier = ">=2.3.1" },
     { name = "pandas", marker = "extra == 'notebook'", specifier = ">=2.0" },
     { name = "plotly", marker = "extra == 'notebook'", specifier = ">=5.15" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.6" },

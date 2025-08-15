@@ -22,7 +22,7 @@ from mcp_server.core.config import get_openai_api_key  # noqa: E402
 load_dotenv()
 
 # Server configuration
-SERVER_URL = "http://127.0.0.1:8000/mcp/"
+SERVER_URL = "http://127.0.0.1:18000/mcp/"
 
 
 class MCPConversationalAgent:
@@ -425,9 +425,9 @@ class MCPConversationalAgent:
             return
 
         example_queries = [
-            "Show me recent posts about BAYER from the last week",
             "List all available listening queries",
-            "Get posts about BAYER from August 5-12, 2025",
+            "Show me recent posts about BAYER from the last week",
+            "Get posts about BAYER from May 1-5, 2025",
         ]
 
         print("\n🎬 Example AI Conversations:")

@@ -105,7 +105,7 @@ example:
 ## Run agent example (requires OpenAI API key)
 agent:
 	@echo "$(BLUE)Running agent example...$(RESET)"
-	$(RUN) python tests/test_examples/mcp_chat_agent.py
+	$(RUN) python tests/test_examples/mcp_chat_agent.py --demo
 
 ## Run interactive chat agent
 chat:
